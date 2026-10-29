@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>바닷길 탐험대</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap">
+<style>
+[hidden]{display:none!important}
+html{color-scheme:light}
+img{max-width:100%}
+/* Layout: 교실 TV·태블릿용 앱 — 큰 무대(2D 옆모습 / 3D 둘러보기) + 오른쪽 관찰 패널, 무대 아래 조작 막대. 탭으로 퀴즈·더 알아보기 */
+:root{
+  --bg:#E9F2F1; --surface:#FFFFFF; --surface-2:#F2F7F6; --ink:#12313A; --muted:#55707A; --line:#D0E1DF;
+  --sea:#137489; --sea-soft:#D7ECEF;
+  --in:#1E5FC2; --in-soft:#DEE8F9;      /* 밀물 */
+  --out:#A85A1B; --out-soft:#F6E5D3;    /* 썰물 */
+  --sun:#E9A72A; --ok:#24804F; --ok-soft:#DCF0E3; --bad:#BC3B34; --bad-soft:#F8E1DE;
+  --f-display:"Jua","Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --r:16px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0C1B20; --surface:#13282F; --surface-2:#18313A; --ink:#E3F0F1; --muted:#93AEB4; --line:#264149;
+  --sea:#4DB4C7; --sea-soft:#163C45; --in:#7DB0F5; --in-soft:#1A2F4F; --out:#E7A066; --out-soft:#40291A;
+  --sun:#F2BE55; --ok:#5CC48A; --ok-soft:#173A28; --bad:#F07C72; --bad-soft:#45201D; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0C1B20; --surface:#13282F; --surface-2:#18313A; --ink:#E3F0F1; --muted:#93AEB4; --line:#264149;
+  --sea:#4DB4C7; --sea-soft:#163C45; --in:#7DB0F5; --in-soft:#1A2F4F; --out:#E7A066; --out-soft:#40291A;
+  --sun:#F2BE55; --ok:#5CC48A; --ok-soft:#173A28; --bad:#F07C72; --bad-soft:#45201D; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:-.01em}
+
+/* 머리글 */
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand svg{flex:none}
+.brand h1{font-size:clamp(26px,3.4vw,36px);line-height:1.1}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:15px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{border:0;background:none;border-radius:999px;padding:8px 18px;font-family:var(--f-display);font-size:18px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--sea);color:var(--surface)}
+
+/* 시뮬레이터 배치 */
+.sim{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+.stage-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.stage{position:relative;border-radius:var(--r);overflow:hidden;background:#0d2a36;aspect-ratio:16/9;max-width:100%}
+.stage canvas,.stage .v3d{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage .v3d canvas{width:100%!important;height:100%!important;display:block}
+.stage:fullscreen{aspect-ratio:auto;border-radius:0}
+.stage-top{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;z-index:3}
+.stage-top>*{pointer-events:auto}
+.seg{display:flex;background:rgba(10,30,40,.62);border-radius:999px;padding:4px;gap:2px;backdrop-filter:blur(4px)}
+.seg button{border:0;background:none;color:#fff;border-radius:999px;padding:6px 14px;font-family:var(--f-display);font-size:16px;opacity:.8}
+.seg button[aria-pressed="true"]{background:#fff;color:#0f3440;opacity:1}
+.iconbtn{border:0;background:rgba(10,30,40,.62);color:#fff;border-radius:999px;padding:6px 14px;font-family:var(--f-display);font-size:15px;backdrop-filter:blur(4px)}
+.hint3d{position:absolute;left:10px;bottom:10px;z-index:3;background:rgba(10,30,40,.62);color:#fff;border-radius:10px;padding:5px 10px;font-size:14px}
+.v3d-msg{position:absolute;inset:0;display:grid;place-items:center;color:#fff;text-align:center;padding:20px;font-size:16px}
+
+/* 안내 말풍선 */
+.guide{display:flex;gap:12px;align-items:center;padding:12px 16px}
+.guide svg{flex:none}
+.guide p{margin:0;font-size:19px;line-height:1.5;min-width:0}
+.guide b{font-family:var(--f-display);font-weight:400}
+
+/* 조작 막대 */
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 14px}
+.play{width:56px;height:56px;border-radius:50%;border:0;background:var(--sea);color:var(--surface);display:grid;place-items:center;flex:none}
+.play svg{width:24px;height:24px}
+.timeline{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.timeline input{width:100%;accent-color:var(--sea);height:28px}
+.ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.speed{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.speed button{border:0;background:none;border-radius:999px;padding:6px 12px;font-size:15px;color:var(--muted)}
+.speed button[aria-pressed="true"]{background:var(--sea-soft);color:var(--ink);font-weight:700}
+.jumps{display:flex;gap:8px;flex-wrap:wrap}
+.jump{border:2px solid currentColor;background:none;border-radius:12px;padding:7px 14px;font-family:var(--f-display);font-size:17px}
+.jump.in{color:var(--in)} .jump.out{color:var(--out)}
+
+/* 관찰 패널 */
+.panel{display:flex;flex-direction:column;gap:12px}
+.panel .card{padding:14px 16px}
+.lbl{font-size:13px;color:var(--muted);letter-spacing:.06em;margin:0 0 6px}
+.clockrow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.clock{font-family:var(--f-display);font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.ampm{font-family:var(--f-display);font-size:22px;color:var(--muted)}
+.day{margin-left:auto;font-size:14px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.status{margin-top:10px;display:flex;align-items:center;gap:10px;border-radius:12px;padding:10px 12px;background:var(--surface-2)}
+.status .big{font-family:var(--f-display);font-size:30px;line-height:1}
+.status .sub{font-size:15px;line-height:1.35}
+.status.in{background:var(--in-soft)} .status.in .big{color:var(--in)}
+.status.out{background:var(--out-soft)} .status.out .big{color:var(--out)}
+.status svg{flex:none}
+.gauge{display:flex;gap:12px;align-items:center}
+.cells{display:flex;flex-direction:column-reverse;gap:3px;width:44px;flex:none}
+.cells div{height:16px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);font-size:11px;line-height:14px;text-align:center;color:var(--muted)}
+.cells div.on{background:var(--sea);border-color:var(--sea);color:var(--surface)}
+.gauge p{margin:0;font-size:16px}
+.gauge .num{font-family:var(--f-display);font-size:34px;line-height:1.1;color:var(--sea)}
+.pathrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pill{display:inline-block;border-radius:999px;padding:3px 12px;font-family:var(--f-display);font-size:17px}
+.pill.open{background:var(--ok-soft);color:var(--ok)} .pill.closed{background:var(--bad-soft);color:var(--bad)}
+.walk{border:0;background:var(--ink);color:var(--bg);border-radius:12px;padding:9px 14px;font-family:var(--f-display);font-size:17px}
+.found{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.found span{font-size:14px;border:1px dashed var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+.found span.got{border-style:solid;border-color:var(--out);color:var(--out);background:var(--out-soft)}
+#chart{width:100%;height:150px;display:block}
+.log{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:15px;max-height:170px;overflow:auto}
+.log li{display:flex;gap:8px;align-items:center;font-variant-numeric:tabular-nums}
+.log .k{font-family:var(--f-display);border-radius:8px;padding:0 8px}
+.log .k.high{background:var(--in-soft);color:var(--in)} .log .k.low{background:var(--out-soft);color:var(--out)}
+.log .empty{color:var(--muted)}
+.summary{margin:8px 0 0;font-size:15px;background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:8px 10px}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:13px;padding:0}
+.rowhead{display:flex;justify-content:space-between;align-items:baseline}
+
+/* 퀴즈 */
+.section-head{display:flex;flex-direction:column;gap:4px;padding:4px 2px}
+.section-head h2{font-size:30px}
+.section-head p{margin:0;color:var(--muted)}
+.quiz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:14px}
+.q{padding:16px;display:flex;flex-direction:column;gap:10px}
+.q h3{font-size:21px;line-height:1.35;display:flex;gap:10px}
+.q h3 .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--sea);color:var(--surface);display:grid;place-items:center;font-size:17px}
+.pics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.pics figure{margin:0;display:flex;flex-direction:column;gap:3px}
+.pics canvas{width:100%;aspect-ratio:16/9;border-radius:10px;display:block;max-width:100%}
+.pics figcaption{font-family:var(--f-display);font-size:16px;color:var(--muted)}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:2px solid var(--line);background:var(--surface-2);border-radius:12px;padding:9px 16px;font-size:17px;text-align:left}
+.opt:hover:not(:disabled){border-color:var(--sea)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft);color:var(--ok);font-weight:700}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft);color:var(--bad);text-decoration:line-through}
+.opt:disabled{cursor:default}
+.fb{margin:0;font-size:16px;border-radius:10px;padding:8px 12px}
+.fb.ok{background:var(--ok-soft)} .fb.no{background:var(--bad-soft)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.score{display:flex;align-items:center;gap:14px;padding:14px 18px;flex-wrap:wrap}
+.score .s{font-family:var(--f-display);font-size:32px;color:var(--sea)}
+.badge{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-size:20px;color:var(--ok)}
+
+.match{padding:16px;display:flex;flex-direction:column;gap:12px}
+.match-board{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:12px 64px}
+.match-col{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1}
+.mi{border:2px solid var(--line);background:var(--surface-2);border-radius:12px;padding:12px 14px;font-size:17px;text-align:left;min-height:64px}
+.mi.sel{border-color:var(--sun);box-shadow:0 0 0 3px color-mix(in srgb,var(--sun) 35%,transparent)}
+.mi.done{border-color:var(--ok);background:var(--ok-soft)}
+.mi.bad{border-color:var(--bad);background:var(--bad-soft)}
+.mi .tag{display:none;margin-top:4px;font-family:var(--f-display);font-size:15px}
+.mi.done .tag{display:block}
+.mi .tag.in{color:var(--in)} .mi .tag.out{color:var(--out)}
+#matchSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* 더 알아보기 */
+.learn{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:14px}
+.ill{margin:4px 0 2px;display:flex;flex-direction:column;gap:4px}
+.ill svg{width:100%;height:auto;border-radius:12px;display:block}
+.ill figcaption{font-size:14px;color:var(--muted)}
+.learn .note{font-size:15px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:8px 12px}
+.refs{display:flex;flex-direction:column;gap:6px;margin-top:auto;padding-top:10px;border-top:1px solid var(--line)}
+.refs-h{font-size:13px;color:var(--muted);letter-spacing:.06em}
+.refs a{display:flex;flex-direction:column;gap:1px;text-decoration:none;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.refs a:hover{border-color:var(--sea)}
+.refs a b{font-weight:700;font-size:15px;line-height:1.4}
+.refs a b::after{content:" ↗";color:var(--sea)}
+.refs a span{font-size:13px;color:var(--muted)}
+.learn .card{padding:18px;display:flex;flex-direction:column;gap:8px}
+.learn h3{font-size:22px}
+.learn p,.learn li{margin:0;font-size:17px}
+.learn ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.learn .kicker{font-size:13px;color:var(--muted);letter-spacing:.06em}
+.learn .wide{grid-column:1/-1}
+.learn svg{max-width:100%;height:auto}
+
+
+/* 한눈에 정리 */
+.rc-head{flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px}
+.rc-tools{display:flex;gap:8px;flex-wrap:wrap}
+.rc-tool{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-size:15px}
+.rc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+.rc-card{padding:16px;display:flex;flex-direction:column;gap:12px;border-width:2px}
+.rc-card.in{border-color:var(--in)} .rc-card.out{border-color:var(--out)}
+.rc-title{display:flex;align-items:baseline;gap:10px}
+.rc-name{font-family:var(--f-display);font-size:40px;line-height:1}
+.rc-card.in .rc-name{color:var(--in)} .rc-card.out .rc-name{color:var(--out)}
+.rc-sub{color:var(--muted);font-size:16px}
+.rc-fig{margin:0}.rc-fig canvas{width:100%;aspect-ratio:16/9;border-radius:12px;display:block;max-width:100%}
+.rc-rows{display:flex;flex-direction:column;gap:10px}
+.rc-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.rc-row .k{font-family:var(--f-display);font-size:17px;color:var(--muted);white-space:nowrap;min-width:96px}
+.rc-opts{display:flex;flex-wrap:wrap;gap:8px}
+.rc-opt{position:relative;border:2px solid var(--line);background:var(--surface-2);border-radius:12px;padding:9px 14px 9px 40px;font-size:18px;text-align:left}
+.rc-opt::before{content:"";position:absolute;left:12px;top:50%;width:18px;height:18px;margin-top:-9px;border:2px solid var(--muted);border-radius:4px;background:var(--surface)}
+.rc-opt.right{border-color:var(--ok);background:var(--ok-soft);font-weight:700}
+.rc-opt.right::after{content:"√";position:absolute;left:12px;top:50%;transform:translateY(-58%);font-family:var(--f-display);font-size:30px;color:var(--ok);line-height:1}
+.rc-opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.rc-opt:disabled{cursor:default}
+.rc-sum{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.rc-sum h3{font-size:26px}
+.rc-hint{margin:0;color:var(--muted);font-size:15px}
+.rc-line{margin:0;font-size:21px;line-height:2}
+.rc-tag{font-family:var(--f-display);border-radius:8px;padding:2px 10px;margin-right:4px}
+.rc-tag.in{background:var(--in-soft);color:var(--in)} .rc-tag.out{background:var(--out-soft);color:var(--out)} .rc-tag.ok{background:var(--ok-soft);color:var(--ok)}
+.blank{min-width:120px;border:0;border-bottom:3px dashed var(--sea);background:var(--sea-soft);border-radius:8px 8px 0 0;padding:0 12px;font-family:var(--f-display);font-size:21px;color:var(--sea)}
+.blank.open{border-bottom-style:solid;background:var(--ok-soft);color:var(--ok)}
+@media (max-width:560px){.rc-row{grid-template-columns:1fr}.rc-line{font-size:18px}.blank{font-size:18px;min-width:90px}}
+@media (max-width:980px){ .sim{grid-template-columns:minmax(0,1fr)} .panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))} }
+.seg button,.iconbtn{white-space:nowrap}
+@media (max-width:560px){ .stage{aspect-ratio:4/3} .seg button{font-size:13px;padding:5px 9px} .iconbtn{font-size:13px;padding:5px 10px} .stage-top{left:6px;right:6px;top:6px} .tabs button{padding:7px 12px;font-size:16px} .guide p{font-size:17px} .match-board{gap:10px 28px} .mi{font-size:15px;padding:10px} }
+@media (prefers-reduced-motion:reduce){ .shake{animation:none} }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="26" fill="var(--sea)"/><path d="M6 33c5-4 9-4 14 0s9 4 14 0 9-4 14 0v12a20 20 0 0 1-42 0z" fill="var(--surface)" opacity=".9"/><path d="M34 30l6-16 6 16z" fill="var(--sun)"/><rect x="38.5" y="9" width="3" height="6" fill="var(--surface)"/></svg>
+    <div><h1>바닷길 탐험대</h1><p>3학년 2학기 과학 · 2. 지구와 바다 · 밀물과 썰물</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="화면 고르기">
+    <button role="tab" aria-selected="true" data-tab="sim" id="tab-sim">시뮬레이터</button>
+    <button role="tab" aria-selected="false" data-tab="recap" id="tab-recap">한눈에 정리</button>
+    <button role="tab" aria-selected="false" data-tab="quiz" id="tab-quiz">확인 퀴즈</button>
+    <button role="tab" aria-selected="false" data-tab="learn" id="tab-learn">더 알아보기</button>
+  </nav>
+</header>
+
+<!-- ===== 시뮬레이터 ===== -->
+<section id="sim" class="sim" role="tabpanel" aria-labelledby="tab-sim">
+  <div class="stage-col">
+    <div class="stage" id="stage">
+      <canvas id="c2d" aria-label="바닷가 옆모습 그림. 시간에 따라 바닷물 높이가 바뀝니다."></canvas>
+      <div class="v3d" id="v3d" hidden></div>
+      <div class="stage-top">
+        <div class="seg" role="group" aria-label="보기 방식">
+          <button aria-pressed="true" data-view="2d" id="btn2d">2D 옆에서 보기</button>
+          <button aria-pressed="false" data-view="3d" id="btn3d">3D 둘러보기</button>
+        </div>
+        <button class="iconbtn" id="fsBtn">크게 보기</button>
+      </div>
+      <div class="hint3d" id="hint3d" hidden>끌어서 돌리기 · 휠/두 손가락으로 확대</div>
+    </div>
+
+    <div class="card guide" aria-live="polite">
+      <svg width="62" height="52" viewBox="0 0 62 52" aria-hidden="true">
+        <path d="M8 22c-6-3-6-12 0-14l3 6-6 2c2 3 5 4 8 3z" fill="#E0672F"/>
+        <path d="M54 22c6-3 6-12 0-14l-3 6 6 2c-2 3-5 4-8 3z" fill="#E0672F"/>
+        <path d="M13 34l-7 6M15 38l-5 8M47 34l7 6M45 38l5 8" stroke="#C4521F" stroke-width="3" stroke-linecap="round"/>
+        <ellipse cx="31" cy="31" rx="19" ry="13" fill="#F07A3A"/>
+        <path d="M25 18v-8M37 18v-8" stroke="#C4521F" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="25" cy="9" r="4.5" fill="#fff"/><circle cx="37" cy="9" r="4.5" fill="#fff"/>
+        <circle cx="25.8" cy="9.4" r="2.2" fill="#13323A"/><circle cx="37.8" cy="9.4" r="2.2" fill="#13323A"/>
+        <path d="M25 35q6 5 12 0" stroke="#13323A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </svg>
+      <p id="guideText"><b>칠게 박사:</b> 걸어서 섬에 갈 수 있을 때는 언제일까요? ▶ 재생을 눌러 바닷물을 지켜보세요!</p>
+    </div>
+
+    <div class="card controls">
+      <button class="play" id="play" aria-label="재생"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg></button>
+      <div class="timeline">
+        <input type="range" id="slider" min="0" max="24" step="0.05" value="10.5" aria-label="하루 중 시각">
+        <div class="ticks"><span>밤 12시</span><span>오전 6시</span><span>낮 12시</span><span>오후 6시</span><span>밤 12시</span></div>
+      </div>
+      <div class="speed" role="group" aria-label="빠르기">
+        <button data-speed="0.5" aria-pressed="false">느리게</button>
+        <button data-speed="1" aria-pressed="true">보통</button>
+        <button data-speed="3" aria-pressed="false">빠르게</button>
+      </div>
+      <div class="jumps">
+        <button class="jump in" id="goIn">밀물 보기</button>
+        <button class="jump out" id="goOut">썰물 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="card">
+      <p class="lbl">지금 시각</p>
+      <div class="clockrow"><span class="ampm" id="ampm">오전</span><span class="clock" id="clock">10:30</span><span class="day" id="day">1일째</span></div>
+      <div class="status" id="status">
+        <svg id="statusIcon" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"></svg>
+        <div><div class="big" id="statusBig">밀물</div><div class="sub" id="statusSub">바닷물이 육지 쪽으로 밀려 들어와요</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="lbl">표지판 눈금 · 바닷물의 높이</p>
+      <div class="gauge">
+        <div class="cells" id="cells"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div></div>
+        <div><div class="num" id="gaugeNum">2칸</div><p id="gaugeText">바닷물이 높아지고 있어요</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="pathrow">
+        <div><p class="lbl">섬으로 가는 바닷길</p><span class="pill open" id="pathPill">열렸어요</span></div>
+        <button class="walk" id="walkBtn">섬으로 걸어가기</button>
+      </div>
+      <p class="lbl" style="margin-top:12px">갯벌 친구 찾기 <span id="foundCount">0/5</span></p>
+      <div class="found" id="foundList"></div>
+      <p style="margin:6px 0 0;font-size:14px;color:var(--muted)">2D 화면에서 갯벌이 드러났을 때 생물을 눌러 보세요.</p>
+    </div>
+
+    <div class="card">
+      <p class="lbl">오늘의 바닷물 높이 그래프</p>
+      <canvas id="chart" aria-label="하루 동안 바닷물 높이 변화 그래프"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="rowhead"><p class="lbl">관찰 기록장</p><button class="linkbtn" id="clearLog">기록 지우기</button></div>
+      <ul class="log" id="log"><li class="empty">재생하면 바닷물이 가장 높을 때와 가장 낮을 때를 자동으로 적어 줘요.</li></ul>
+      <p class="summary" id="summary" hidden>관찰 결과: 하루에 바닷물이 두 번쯤 가득 들어오고, 두 번쯤 빠져나가요. 밀물과 썰물이 번갈아 일어나요!</p>
+    </div>
+  </aside>
+</section>
+
+<!-- ===== 한눈에 정리 ===== -->
+<section id="recap" role="tabpanel" aria-labelledby="tab-recap" hidden>
+  <div class="wrap" style="gap:14px">
+    <div class="section-head rc-head">
+      <div><h2>한눈에 정리</h2><p>그림을 보고 알맞은 것을 눌러 √ 표 해 봐요. 다 함께 소리 내어 읽어 봐요.</p></div>
+      <div class="rc-tools"><button class="rc-tool" id="rcShow">정답 모두 보기</button><button class="rc-tool" id="rcReset">처음부터 다시</button></div>
+    </div>
+    <div class="rc-grid">
+      <article class="card rc-card in" data-kind="in">
+        <div class="rc-title"><span class="rc-name">밀물</span><span class="rc-sub">바닷물이 들어올 때</span></div>
+        <figure class="rc-fig"><canvas id="rcIn" aria-label="밀물 때 바닷물이 육지 쪽으로 들어오며 높아지는 움직이는 그림"></canvas></figure>
+        <div class="rc-rows"></div>
+      </article>
+      <article class="card rc-card out" data-kind="out">
+        <div class="rc-title"><span class="rc-name">썰물</span><span class="rc-sub">바닷물이 나갈 때</span></div>
+        <figure class="rc-fig"><canvas id="rcOut" aria-label="썰물 때 바닷물이 바다 쪽으로 빠져나가며 낮아지는 움직이는 그림"></canvas></figure>
+        <div class="rc-rows"></div>
+      </article>
+    </div>
+    <article class="card rc-sum">
+      <h3>정리해 볼까요?</h3>
+      <p class="rc-hint">빈칸을 누르면 답이 나타나요. 먼저 말해 보고 눌러 확인해요.</p>
+      <p class="rc-line"><span class="rc-tag in">밀물</span> 때에는 바닷물이 육지 쪽으로 <button class="blank" data-a="밀려 들어와">?</button> 바닷물의 높이가 <button class="blank" data-a="높아져요">?</button></p>
+      <p class="rc-line"><span class="rc-tag out">썰물</span> 때에는 바닷물이 바다 쪽으로 <button class="blank" data-a="빠져나가">?</button> 바닷물의 높이가 <button class="blank" data-a="낮아져요">?</button></p>
+      <p class="rc-line"><span class="rc-tag ok">하루에</span> 밀물과 썰물은 <button class="blank" data-a="두 번쯤씩">?</button> 번갈아 일어나요.</p>
+      <p class="rc-line"><span class="rc-tag ok">섬까지</span> 걸어갈 수 있는 때는 바닷길이 드러나는 <button class="blank" data-a="썰물 때">?</button>예요.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ===== 퀴즈 ===== -->
+<section id="quiz" role="tabpanel" aria-labelledby="tab-quiz" hidden>
+  <div class="wrap" style="gap:14px">
+    <div class="section-head"><h2>확인 퀴즈</h2><p>시뮬레이터에서 본 것을 떠올리며 풀어 보세요. 틀려도 다시 고를 수 있어요.</p></div>
+    <div class="card score"><span>처음에 바로 맞힌 문제</span><span class="s" id="score">0 / 8</span><span class="badge" id="badge" hidden>
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="var(--ok)"/><path d="M10 17l5 5 9-10" stroke="var(--surface)" stroke-width="3.4" fill="none" stroke-linecap="round"/></svg>
+      바닷길 탐험대 인증! 모든 문제를 해결했어요</span></div>
+
+    <div class="card match">
+      <h3 style="font-size:22px">선 잇기: 바닷물의 이동과 높이 변화를 이어 보세요</h3>
+      <p style="margin:0;color:var(--muted);font-size:15px">왼쪽 카드를 먼저 누르고, 알맞은 오른쪽 카드를 누르세요.</p>
+      <div class="match-board" id="matchBoard">
+        <svg id="matchSvg" aria-hidden="true"></svg>
+        <div class="match-col" id="mLeft"></div>
+        <div class="match-col" id="mRight"></div>
+      </div>
+      <p class="fb ok" id="matchDone" hidden>잘했어요! 바닷물이 밀려 들어오면 높이가 높아지고(밀물), 빠져나가면 낮아져요(썰물).</p>
+    </div>
+
+    <div class="quiz-grid" id="quizGrid"></div>
+  </div>
+</section>
+
+<!-- ===== 더 알아보기 ===== -->
+<section id="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+  <div class="wrap" style="gap:14px">
+    <div class="section-head"><h2>더 알아보기</h2><p>밀물과 썰물에 얽힌 진짜 이야기와 바닷가 안전 약속이에요. 기사 제목을 누르면 새 창에서 열려요.</p></div>
+    <div class="learn">
+      <article class="card">
+        <span class="kicker">왜 그럴까?</span>
+        <h3>달이 바닷물을 살짝 끌어당겨요</h3>
+        <figure class="ill">
+          <svg viewBox="0 0 360 180" role="img" aria-label="달이 지구의 바닷물을 끌어당겨 달 쪽과 반대쪽 바닷물이 부풀어 오른 그림">
+            <rect width="360" height="180" rx="12" fill="#0E1C3D"/>
+            <g fill="#fff" opacity=".7"><circle cx="30" cy="25" r="1.4"/><circle cx="120" cy="18" r="1"/><circle cx="210" cy="30" r="1.3"/><circle cx="330" cy="20" r="1"/><circle cx="60" cy="160" r="1.2"/><circle cx="250" cy="160" r="1"/><circle cx="345" cy="150" r="1.4"/></g>
+            <ellipse cx="120" cy="90" rx="78" ry="56" fill="#4CB6D6" opacity=".55"/>
+            <circle cx="120" cy="90" r="52" fill="#2A8FB8"/>
+            <path d="M92 62c12-8 30-6 38 4s-4 18-16 16-20 6-26-2 0-14 4-18zM120 108c10-4 22 0 24 8s-10 12-20 8-12-12-4-16z" fill="#6FB35C"/>
+            <circle cx="300" cy="90" r="24" fill="#EDEBD8"/><circle cx="292" cy="82" r="4" fill="#D3D0B8"/><circle cx="306" cy="100" r="3" fill="#D3D0B8"/>
+            <g stroke="#F2C14E" stroke-width="3" stroke-linecap="round" fill="none"><path d="M268 90h-60"/><path d="M216 81l-9 9 9 9"/></g>
+            <text x="300" y="134" fill="#fff" font-family="Jua, sans-serif" font-size="15" text-anchor="middle">달</text>
+            <text x="120" y="164" fill="#fff" font-family="Jua, sans-serif" font-size="15" text-anchor="middle">지구</text>
+            <text x="238" y="76" fill="#F2C14E" font-family="Jua, sans-serif" font-size="13" text-anchor="middle">끌어당겨요</text>
+            <text x="22" y="95" fill="#BFE6F2" font-family="Jua, sans-serif" font-size="12">물이 많은 곳</text>
+          </svg>
+          <figcaption>바닷물이 달 쪽과 그 반대쪽으로 볼록하게 모여요.</figcaption>
+        </figure>
+        <p>달은 지구의 바닷물을 조금씩 끌어당겨요. 그래서 바닷물이 달 쪽과 그 반대쪽으로 볼록하게 모여요. 지구가 하루에 한 바퀴 도는 동안 우리 바닷가는 바닷물이 많이 모인 곳을 두 번쯤 지나가요. 그래서 하루에 밀물과 썰물이 두 번쯤씩 생겨요.</p>
+        <div class="refs"><span class="refs-h">더 읽어 보기</span>
+          <a href="https://astro4edu.org/ko/resources/glossary/term/360/" target="_blank" rel="noopener"><b>조석(밀물과 썰물)이란?</b><span>국제천문연맹(IAU) 천문교육사무국 용어집</span></a>
+          <a href="https://www.insight.co.kr/news/577050" target="_blank" rel="noopener"><b>조석 간만의 차와 해저 지형이 만들어낸 ‘모세의 기적’ 진도 신비의 바닷길</b><span>인사이트 · 2026. 10. 8.</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <span class="kicker">바닷가 사람들</span>
+        <h3>물때표를 보고 일해요</h3>
+        <figure class="ill">
+          <svg viewBox="0 0 360 180" role="img" aria-label="물때표를 읽는 법을 보여 주는 예시 그림">
+            <rect width="360" height="180" rx="12" fill="#F3F8F7"/>
+            <rect x="16" y="16" width="200" height="148" rx="10" fill="#fff" stroke="#C9DCDA" stroke-width="2"/>
+            <rect x="16" y="16" width="200" height="30" rx="10" fill="#137489"/><rect x="16" y="36" width="200" height="10" fill="#137489"/>
+            <text x="116" y="37" fill="#fff" font-family="Jua, sans-serif" font-size="15" text-anchor="middle">물때표 (예시)</text>
+            <g font-family="Gowun Dodum, sans-serif" font-size="13" fill="#12313A">
+              <text x="30" y="70">가장 높을 때</text><text x="200" y="70" text-anchor="end" fill="#1E5FC2">오전 3:00</text>
+              <text x="30" y="96">가장 낮을 때</text><text x="200" y="96" text-anchor="end" fill="#A85A1B">오전 9:12</text>
+              <text x="30" y="122">가장 높을 때</text><text x="200" y="122" text-anchor="end" fill="#1E5FC2">오후 3:25</text>
+              <text x="30" y="148">가장 낮을 때</text><text x="200" y="148" text-anchor="end" fill="#A85A1B">오후 9:37</text>
+            </g>
+            <g stroke="#E1EBEA"><path d="M28 80h176M28 106h176M28 132h176"/></g>
+            <path d="M236 140c14-10 26-10 40 0s26 10 40 0 20-6 28-4v28H236z" fill="#4CB6D6"/>
+            <circle cx="290" cy="112" r="11" fill="#2B3A44"/><rect x="280" y="104" width="20" height="5" rx="2" fill="#9FD7E8"/>
+            <path d="M278 124c4 10 20 10 24 0" fill="#2B3A44"/>
+            <circle cx="320" cy="132" r="8" fill="#F28C38"/><path d="M320 124v-14" stroke="#7A5236" stroke-width="2"/>
+            <text x="290" y="60" fill="#12313A" font-family="Jua, sans-serif" font-size="13" text-anchor="middle">물때를 보고</text>
+            <text x="290" y="78" fill="#12313A" font-family="Jua, sans-serif" font-size="13" text-anchor="middle">바다에 들어가요</text>
+          </svg>
+          <figcaption>물때표에는 날마다 바닷물이 가장 높을 때와 가장 낮을 때가 적혀 있어요.</figcaption>
+        </figure>
+        <p>바닷가 사람들은 바닷물이 들어오고 나가는 때를 <b>‘물때’</b>라고 불러요. 고기잡이를 하는 어부, 갯벌에서 조개를 캐는 사람, 바닷속에 들어가 물질을 하는 제주 해녀는 물때를 보고 일할 날과 시간을 정해요. 2026년 3월에는 이렇게 오랫동안 이어져 온 ‘물때’ 지식이 국가무형유산이 되었어요.</p>
+        <div class="refs"><span class="refs-h">더 읽어 보기</span>
+          <a href="https://dazabi.com/insurance_magazine/article.php?id=10792" target="_blank" rel="noopener"><b>「물때」 국가무형유산 신규 종목 지정</b><span>정책브리핑 보도자료 바탕 기사 · 2026. 3. 26.</span></a>
+          <a href="https://brunch.co.kr/@popmee/254" target="_blank" rel="noopener"><b>달과 바다의 시간을 걷는 사람들: 물때, 그리고 해녀가 읽어온 삶의 방식</b><span>브런치 · 2026. 4.</span></a>
+          <a href="https://www.badatime.com/238.html" target="_blank" rel="noopener"><b>진짜 물때표 보기: 서귀포 서건도</b><span>바다타임 · 날짜별 바닷물 높이와 시각</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <span class="kicker">진짜로 있어요</span>
+        <h3>바닷길이 열리는 곳</h3>
+        <figure class="ill">
+          <svg viewBox="0 0 360 180" role="img" aria-label="썰물 때 육지와 섬 사이에 바닷길이 드러나 사람들이 걸어가는 그림">
+            <defs><linearGradient id="lsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CC6EC"/><stop offset="1" stop-color="#D6EFF8"/></linearGradient></defs>
+            <rect width="360" height="180" rx="12" fill="url(#lsky)"/>
+            <path d="M0 90h360v78a12 12 0 0 1-12 12H12A12 12 0 0 1 0 168z" fill="#2E9BC0"/>
+            <path d="M0 110c40-6 60-4 90 4 60 14 120 14 180 2 30-6 60-8 90-4v68H0z" fill="#3AA7CA" opacity=".6"/>
+            <path d="M0 150c30-8 50-30 70-40l0 70H0z" fill="#6FA85A"/>
+            <path d="M60 128c50-6 160-30 240-48l8 8c-80 22-180 48-240 56z" fill="#D9C08A"/>
+            <path d="M262 92c10-30 40-46 70-44 20 2 28 16 28 30v14z" fill="#5E9A4C"/>
+            <rect x="318" y="38" width="8" height="26" fill="#F6F4EE"/><rect x="318" y="46" width="8" height="5" fill="#D2453B"/><path d="M315 38h14l-7-8z" fill="#D2453B"/>
+            <g fill="#2B3A44"><circle cx="150" cy="108" r="4"/><rect x="147" y="112" width="6" height="10" rx="2" fill="#F2B43A"/><circle cx="170" cy="103" r="4"/><rect x="167" y="107" width="6" height="10" rx="2" fill="#3E7DC4"/><circle cx="210" cy="96" r="3.5"/><rect x="207.5" y="99.5" width="5" height="9" rx="2" fill="#D2453B"/></g>
+            <text x="190" y="140" fill="#fff" font-family="Jua, sans-serif" font-size="15" text-anchor="middle">썰물 때 드러난 바닷길</text>
+          </svg>
+          <figcaption>썰물 때 바닷물이 빠지면 육지와 섬 사이에 길이 드러나요.</figcaption>
+        </figure>
+        <p><b>전라남도 진도</b>에서는 썰물 때 바다 한가운데로 폭 약 40m, 길이 약 2.8km나 되는 길이 드러나요. 이 길은 1시간쯤 열렸다가 다시 바닷물에 잠겨요. 우리 제주에도 있어요! <b>서귀포 강정동의 서건도</b>는 썰물 때 걸어서 들어갈 수 있는 섬이에요. 충남 보령 무창포에서도 ‘신비의 바닷길’을 걸어 볼 수 있어요.</p>
+        <div class="refs"><span class="refs-h">더 읽어 보기</span>
+          <a href="https://www.insight.co.kr/news/577050" target="_blank" rel="noopener"><b>‘모세의 기적’ 진도 신비의 바닷길</b><span>인사이트 · 2026. 10. 8.</span></a>
+          <a href="https://www.ktriptips.com/kor/tourspot/1936039" target="_blank" rel="noopener"><b>서건도: 썰물 때 걸어서 들어가는 서귀포의 섬</b><span>관광 정보 · 서귀포시 강정동</span></a>
+          <a href="https://www.khan.co.kr/article/202603171017001" target="_blank" rel="noopener"><b>보령 무창포, ‘바닷길 열리는’ 봄 축제 개막</b><span>경향신문 · 2026. 3. 17.</span></a>
+        </div>
+      </article>
+
+      <article class="card">
+        <span class="kicker">꼭 지켜요</span>
+        <h3>갯벌·바닷길 안전 약속</h3>
+        <figure class="ill">
+          <svg viewBox="0 0 360 180" role="img" aria-label="갯벌 안전 약속 그림: 물때 확인, 어른과 함께, 휴대전화와 구명조끼, 밀물이 오면 바로 나오기">
+            <rect width="360" height="180" rx="12" fill="#F3F8F7"/>
+            <g font-family="Jua, sans-serif" font-size="13" fill="#12313A" text-anchor="middle">
+              <circle cx="50" cy="70" r="32" fill="#DEE8F9"/><circle cx="50" cy="70" r="18" fill="#fff" stroke="#1E5FC2" stroke-width="3"/><path d="M50 60v10l7 5" stroke="#1E5FC2" stroke-width="3" fill="none" stroke-linecap="round"/><text x="50" y="124">물때</text><text x="50" y="140">확인</text>
+              <circle cx="137" cy="70" r="32" fill="#DCF0E3"/><circle cx="128" cy="58" r="7" fill="#24804F"/><rect x="121" y="66" width="14" height="22" rx="5" fill="#24804F"/><circle cx="148" cy="64" r="5" fill="#24804F"/><rect x="143" y="70" width="10" height="16" rx="4" fill="#24804F"/><text x="137" y="124">어른과</text><text x="137" y="140">함께</text>
+              <circle cx="224" cy="70" r="32" fill="#F6E5D3"/><path d="M212 54h24l4 8v26h-32V62z" fill="#F28C38"/><rect x="220" y="60" width="8" height="28" fill="#fff" opacity=".6"/><text x="224" y="124">구명조끼</text><text x="224" y="140">휴대전화</text>
+              <circle cx="311" cy="70" r="32" fill="#F8E1DE"/><path d="M296 82c6-5 10-5 15 0s10 5 15 0" stroke="#BC3B34" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M322 62h-22M308 54l-8 8 8 8" stroke="#BC3B34" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="311" y="124">밀물이면</text><text x="311" y="140">바로 나와요</text>
+            </g>
+            <text x="180" y="166" fill="#55707A" font-family="Gowun Dodum, sans-serif" font-size="12" text-anchor="middle">바닷물은 생각보다 훨씬 빨리 들어와요</text>
+          </svg>
+          <figcaption>해양경찰이 강조하는 갯벌 안전 약속이에요.</figcaption>
+        </figure>
+        <ul>
+          <li>가기 전에 물때(밀물·썰물 시각)를 꼭 확인해요.</li>
+          <li>혼자 가지 않고, 어른과 함께 2명 이상 가요.</li>
+          <li>구명조끼를 입고, 휴대전화를 꼭 챙겨요.</li>
+          <li>바닷물이 들어오기 시작하면 바로 육지 쪽으로 나와요.</li>
+          <li>바닷길이 물에 잠기기 시작하면 건너지 않아요.</li>
+        </ul>
+        <p class="note">올해 우리나라 갯벌에서는 물때를 놓쳐 바닷물에 갇히는 사고가 지난해보다 두 배 넘게 늘었대요. 그래서 해양경찰이 안전 약속을 꼭 지켜 달라고 당부했어요.</p>
+        <div class="refs"><span class="refs-h">더 읽어 보기</span>
+          <a href="https://www.khan.co.kr/article/202604292130005/" target="_blank" rel="noopener"><b>갯벌 고립 사고 급증, 해경 “물때 확인·2인 이상 동행” 당부</b><span>경향신문 · 2026. 4. 29. (교사용)</span></a>
+          <a href="https://www.twig24.com/news/2026/02/13/20260213500106" target="_blank" rel="noopener"><b>“갯벌 고립 조심하세요”… 해경, 안전사고 ‘주의보’ 발령</b><span>트윅 · 2026. 2. 13.</span></a>
+        </div>
+      </article>
+    </div>
+  </div>
+
+</section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+
+/* ---------- 바닷물 모형 ---------- */
+const T0=3.0, P=12.42, MID=.43, AMP=.33, PATH_OPEN=.225;
+const MARKS=[.39,.48,.57,.66,.75];
+const ph=T=>2*Math.PI*(T-T0)/P;
+const tideL=T=>MID+AMP*Math.cos(ph(T));
+const tideD=T=>-Math.sin(ph(T));
+const tideC=T=>Math.cos(ph(T));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const sm=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+function base2(u){
+  if(u<.16) return .92+.012*Math.sin(u*60);
+  if(u<.27) return lerp(.92,.40,sm((u-.16)/.11));
+  if(u<.60) return .40-(u-.27)/.33*.16+.005*Math.sin((u-.27)*95);
+  if(u<.66) return .24;
+  return lerp(.24,.02,sm((u-.66)/.29));
+}
+function island2(u){const d=(u-.775)/.10; return Math.abs(d)<1? .86*Math.pow(1-d*d,.8):0}
+const g2=u=>Math.max(base2(u),island2(u));
+
+/* ---------- 상태 ---------- */
+const S={T:10.5, playing:false, speed:1, view:'2d', walk:null, found:new Set(), log:[], prevSign:Math.sign(tideD(10.5)), msg:null, started:false};
+const CRE=[
+  {u:.31,k:'crab',name:'칠게',desc:'갯벌 구멍을 들락날락하는 작은 게예요. 바닷물이 들어오면 구멍 속으로 쏙 숨어요.'},
+  {u:.37,k:'snail',name:'갯고둥',desc:'돌돌 말린 껍데기를 가진 고둥이에요. 갯벌 위를 천천히 기어 다녀요.'},
+  {u:.43,k:'clam',name:'바지락',desc:'갯벌 속에 숨어 사는 조개예요. 밀물 때 물속의 먹이를 먹어요.'},
+  {u:.53,k:'mud',name:'짱뚱어',desc:'지느러미로 갯벌 위를 폴짝폴짝 뛰어다니는 물고기예요.'},
+  {u:.585,k:'worm',name:'갯지렁이',desc:'갯벌 속에 구멍을 파고 살면서 갯벌을 깨끗하게 해 줘요.'}
+];
+let hits=[];
+
+/* ---------- 색 ---------- */
+function hex2rgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function mixHex(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);return 'rgb('+A.map((v,i)=>Math.round(lerp(v,B[i],t))).join(',')+')'}
+function mixArr(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);return A.map((v,i)=>lerp(v,B[i],t)/255)}
+const SKY=[[0,'#0B1633','#1D2C57'],[4.8,'#0B1633','#1D2C57'],[6,'#40508E','#F3A47C'],[7.4,'#5BB4E6','#CDEBF7'],[17,'#4DACE3','#D3EEF8'],[18.4,'#5A5EA6','#F5A46E'],[19.6,'#152150','#2C3B6C'],[24,'#0B1633','#1D2C57']];
+function skyAt(h,arr){for(let i=0;i<SKY.length-1;i++){const a=SKY[i],b=SKY[i+1];if(h>=a[0]&&h<=b[0]){const t=(h-a[0])/(b[0]-a[0]);return arr?{top:mixArr(a[1],b[1],t),bot:mixArr(a[2],b[2],t)}:{top:mixHex(a[1],b[1],t),bot:mixHex(a[2],b[2],t)}}}return skyAt(0,arr)}
+function nightAt(h){if(h<4.8||h>19.8)return 1;if(h<7)return 1-sm((h-4.8)/2.2);if(h>17.6)return sm((h-17.6)/2.2);return 0}
+
+/* ---------- 2D 그리기 ---------- */
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+const MUDDOTS=Array.from({length:42},(_,i)=>({u:.29+((i*0.6180339)%1)*.36,d:((i*0.371)%1)}));
+const STARS=Array.from({length:60},(_,i)=>({x:(i*0.6180339)%1,y:((i*0.4142)%1)*.45,r:.6+((i*.73)%1)*1.2}));
+
+function drawScene(ctx,W,H,o){
+  const {hour,L,dv,at,small}=o;
+  const X=u=>u*W, Y=h=>H*(.95-h*.66);
+  const fs=Math.max(10,H*(small?.06:.042));
+  const night=nightAt(hour);
+  const out=[];
+  // 하늘
+  const sk=skyAt(hour);
+  let gr=ctx.createLinearGradient(0,0,0,Y(.3));gr.addColorStop(0,sk.top);gr.addColorStop(1,sk.bot);
+  ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
+  if(night>0){ctx.fillStyle='rgba(255,255,255,'+(.85*night)+')';STARS.forEach(s=>{ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r*(small?.6:1),0,7);ctx.fill()})}
+  // 해와 달
+  if(hour>=5.6&&hour<=19){const a=(hour-5.6)/13.4;const sx=W*(.06+.88*a),sy=H*(.44-.36*Math.sin(a*Math.PI));
+    const r=H*.045;const gg=ctx.createRadialGradient(sx,sy,0,sx,sy,r*3);gg.addColorStop(0,'rgba(255,236,170,.9)');gg.addColorStop(1,'rgba(255,236,170,0)');
+    ctx.fillStyle=gg;ctx.beginPath();ctx.arc(sx,sy,r*3,0,7);ctx.fill();ctx.fillStyle='#FFD45C';ctx.beginPath();ctx.arc(sx,sy,r,0,7);ctx.fill()}
+  if(night>.3){const nh=(hour>=18?hour-18:hour+6)/12;const mx=W*(.08+.84*nh),my=H*(.42-.32*Math.sin(nh*Math.PI));const r=H*.035;
+    ctx.fillStyle='rgba(245,243,220,'+night+')';ctx.beginPath();ctx.arc(mx,my,r,0,7);ctx.fill();ctx.fillStyle=sk.top;ctx.beginPath();ctx.arc(mx+r*.45,my-r*.25,r*.85,0,7);ctx.fill()}
+  // 구름
+  if(!small){ctx.fillStyle='rgba(255,255,255,'+(.75-.5*night)+')';[[.2,.12,1],[.62,.08,.8],[.9,.18,.7]].forEach(([cx,cy,s],i)=>{const x=((cx+at*.006*(i+1))%1.2-.1)*W,y=cy*H,r=H*.035*s;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.arc(x+r*1.1,y-r*.4,r*1.2,0,7);ctx.arc(x+r*2.3,y,r*.95,0,7);ctx.fill()})}
+  // 땅
+  const N=220;
+  ctx.beginPath();ctx.moveTo(0,H);for(let i=0;i<=N;i++){const u=i/N;ctx.lineTo(X(u),Y(g2(u)))}ctx.lineTo(W,H);ctx.closePath();
+  gr=ctx.createLinearGradient(0,0,W,0);
+  [[0,'#6FA85A'],[.15,'#78AF5E'],[.185,'#E6CF96'],[.255,'#E1C68B'],[.29,'#8D7257'],[.6,'#866B52'],[.665,'#B6A07C'],[.69,'#8F8A6E'],[.72,'#5E9A4C'],[.83,'#5E9A4C'],[.86,'#97896F'],[.9,'#CDB88C'],[1,'#BFA97E']].forEach(([s,c])=>gr.addColorStop(s,c));
+  ctx.fillStyle=gr;ctx.fill();
+  const gd=ctx.createLinearGradient(0,Y(.9),0,H);gd.addColorStop(0,'rgba(40,25,10,0)');gd.addColorStop(1,'rgba(40,25,10,.38)');ctx.fillStyle=gd;ctx.fill();
+  // 돌담과 갯벌 구멍
+  ctx.fillStyle='#4C4A47';for(let u=.005;u<.155;u+=.012){ctx.beginPath();ctx.ellipse(X(u),Y(g2(u))-H*.008,W*.0065,H*.009,0,0,7);ctx.fill()}
+  ctx.fillStyle='rgba(50,35,22,.55)';MUDDOTS.forEach(d=>{ctx.beginPath();ctx.ellipse(X(d.u),Y(g2(d.u))+H*(.008+d.d*.02),W*.004,H*.004,0,0,7);ctx.fill()});
+  // 마을 집
+  const house=(u,c)=>{const x=X(u),y=Y(g2(u))-H*.016,w=W*.045,h=H*.07;ctx.fillStyle='#F3EEE4';ctx.fillRect(x-w/2,y-h,w,h);ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x-w*.65,y-h);ctx.lineTo(x,y-h-H*.045);ctx.lineTo(x+w*.65,y-h);ctx.closePath();ctx.fill();ctx.fillStyle='#5A7C9C';ctx.fillRect(x-w*.18,y-h*.55,w*.36,h*.3);ctx.fillStyle='#7A5236';ctx.fillRect(x+w*.22,y-h*.6,w*.14,h*.6)};
+  const tree=(u,s)=>{const x=X(u),y=Y(g2(u));ctx.fillStyle='#6B4A2E';ctx.fillRect(x-W*.003,y-H*.06*s,W*.006,H*.06*s);ctx.fillStyle='#3E7D3A';ctx.beginPath();ctx.arc(x,y-H*.075*s,H*.035*s,0,7);ctx.fill()};
+  tree(.02,1.1);house(.05,'#2F67A8');house(.105,'#D0623A');tree(.14,.9);
+  // 섬: 나무와 등대
+  tree(.735,.9);tree(.815,1);
+  const lx=X(.775),ly=Y(g2(.775)),lw=W*.016,lh=H*.13;
+  ctx.fillStyle='#F6F4EE';ctx.beginPath();ctx.moveTo(lx-lw*.6,ly);ctx.lineTo(lx-lw*.42,ly-lh);ctx.lineTo(lx+lw*.42,ly-lh);ctx.lineTo(lx+lw*.6,ly);ctx.fill();
+  ctx.fillStyle='#D2453B';[.25,.62].forEach(f=>ctx.fillRect(lx-lw*.55,ly-lh*f-lh*.1,lw*1.1,lh*.12));
+  ctx.fillStyle='#2B3A44';ctx.fillRect(lx-lw*.55,ly-lh-H*.03,lw*1.1,H*.03);ctx.fillStyle='#FFE58A';ctx.fillRect(lx-lw*.35,ly-lh-H*.025,lw*.7,H*.02);
+  ctx.fillStyle='#D2453B';ctx.beginPath();ctx.moveTo(lx-lw*.7,ly-lh-H*.03);ctx.lineTo(lx,ly-lh-H*.06);ctx.lineTo(lx+lw*.7,ly-lh-H*.03);ctx.fill();
+  // 표지판 기둥
+  const pu=.47,px=X(pu),pgy=Y(g2(pu)),pty=Y(.80);
+  ctx.fillStyle='#E9E4D8';ctx.fillRect(px-W*.004,pty,W*.008,pgy-pty);
+  // 갯벌 생물(물 밖일 때만)
+  CRE.forEach((c,i)=>{const gh=g2(c.u);if(gh>L+.006){const x=X(c.u),y=Y(gh);const s=H*(small?.04:.032);drawCreature(ctx,c.k,x,y,s,at+i);out.push({i,x,y:y-s*.5,r:s*1.5})}});
+  // 바닷물
+  const wl=Y(L),amp=H*.005;
+  ctx.save();ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(W,0);for(let i=N;i>=0;i--){const u=i/N;ctx.lineTo(X(u),Y(g2(u)))}ctx.closePath();ctx.clip();
+  ctx.beginPath();ctx.moveTo(0,H);const surf=[];for(let i=0;i<=120;i++){const u=i/120;const y=wl+Math.sin(u*38+at*1.8)*amp+Math.sin(u*91-at*2.6)*amp*.4;surf.push([X(u),y]);ctx.lineTo(X(u),y)}ctx.lineTo(W,H);ctx.closePath();
+  gr=ctx.createLinearGradient(0,wl,0,H);gr.addColorStop(0,'rgba(84,190,214,.84)');gr.addColorStop(1,'rgba(16,86,122,.95)');ctx.fillStyle=gr;ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=Math.max(1.5,H*.004);ctx.beginPath();surf.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
+  // 물고기
+  [[.38,0],[.5,2],[.9,1],[.95,3]].forEach(([u,p])=>{const gh=g2(u);if(L-gh>.07){const x=X(u)+Math.sin(at*.8+p)*W*.02,y=Y((L+gh)/2)+Math.sin(at*1.7+p)*H*.008;drawFish(ctx,x,y,H*.022,Math.cos(at*.8+p)>0?1:-1)}});
+  ctx.restore();
+  // 표지판 눈금
+  MARKS.forEach((m,i)=>{const y=Y(m),sub=L>=m;ctx.fillStyle='#D2453B';ctx.fillRect(px-W*.008,y-1.5,W*.016,3);
+    const bw=fs*1.25,bh=fs*1.2;rr(ctx,px+W*.012,y-bh/2,bw,bh,4);ctx.fillStyle=sub?'#137489':'#FFFFFF';ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#137489';ctx.stroke();
+    ctx.fillStyle=sub?'#FFFFFF':'#137489';ctx.font=(fs*.9)+'px Jua, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),px+W*.012+bw/2,y+1)});
+  // 배
+  const bu=.555,bg=g2(bu),grounded=L<bg+.014,bh=Math.max(L,bg+.014);
+  ctx.save();ctx.translate(X(bu),Y(bh));ctx.rotate(grounded?.13:Math.sin(at*1.5)*.04);const s=W*.032;
+  ctx.fillStyle='#C9493C';ctx.beginPath();ctx.moveTo(-s*1.1,-s*.35);ctx.lineTo(s*1.2,-s*.35);ctx.lineTo(s*.8,s*.12);ctx.lineTo(-s*.85,s*.12);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(-s*1.0,-s*.38,s*2.15,s*.1);ctx.fillStyle='#F5F1E6';ctx.fillRect(-s*.45,-s*.95,s*.75,s*.6);ctx.fillStyle='#3B6C93';ctx.fillRect(-s*.32,-s*.82,s*.22,s*.22);ctx.fillRect(s*.02,-s*.82,s*.22,s*.22);
+  ctx.strokeStyle='#5A4636';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s*.7,-s*.35);ctx.lineTo(s*.7,-s*1.5);ctx.stroke();ctx.fillStyle='#F2B43A';ctx.beginPath();ctx.moveTo(s*.7,-s*1.5);ctx.lineTo(s*1.1,-s*1.35);ctx.lineTo(s*.7,-s*1.2);ctx.fill();
+  ctx.restore();
+  // 걷는 사람
+  if(o.walkU!=null){const u=o.walkU,x=X(u),y=Y(g2(u));drawWalker(ctx,x,y,H*.075,at,o.walkDir)}
+  // 밤 어둡게 + 등대 불빛
+  if(night>0){ctx.fillStyle='rgba(8,16,44,'+(night*.32)+')';ctx.fillRect(0,0,W,H);
+    const bx=lx,by=ly-lh-H*.015,a=at*.9;ctx.save();ctx.globalAlpha=.35*night;ctx.fillStyle='#FFE9A0';ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+Math.cos(a)*W*.35,by-H*.05+Math.sin(a)*H*.03);ctx.lineTo(bx+Math.cos(a)*W*.35,by+H*.05+Math.sin(a)*H*.03);ctx.closePath();ctx.fill();ctx.restore();
+    ctx.fillStyle='rgba(255,233,150,'+night+')';ctx.beginPath();ctx.arc(bx,by,H*.012,0,7);ctx.fill()}
+  // 화살표
+  if(Math.abs(dv)>.22&&o.arrows!==false){
+    let su=null;for(let i=0;i<=N;i++){const u=.16+i/N*.84;if(g2(u)<L){su=u;break}}
+    if(su!=null){const rising=dv>0,col=rising?'#2A6FD6':'#C2691F',dir=rising?-1:1;const y=wl-H*.075;const sx=X(su);
+      const step=W*.05,n=small?2:3;const off=((at*.7)%1)*step*dir;
+      for(let k=0;k<n;k++){let x=sx+W*.04+k*step+off;if(x>W-W*.03||x<sx+W*.01)continue;drawChevron(ctx,x,y,H*.04,dir,col,1-(k/(n+1))*.3)}
+      if(!small){const txt=rising?'밀물: 육지 쪽으로 밀려 들어와요':'썰물: 바다 쪽으로 빠져나가요';ctx.font=fs+'px Jua, sans-serif';const tw=ctx.measureText(txt).width;let tx=clamp(sx+W*.02,8,W-tw-28),ty=y-H*.095;
+        rr(ctx,tx,ty-fs*.8,tw+20,fs*1.6,fs*.6);ctx.fillStyle=col;ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(txt,tx+10,ty+1)}}
+  }
+  // 이름표
+  if(o.labels!==false){ctx.font=fs+'px Jua, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    const tag=(t,u,dy)=>{const x=X(u),y=Y(g2(u))+H*dy;ctx.lineWidth=4;ctx.strokeStyle='rgba(30,20,10,.55)';ctx.strokeText(t,x,y);ctx.fillStyle='#FFFFFF';ctx.fillText(t,x,y)};
+    tag('마을(육지)',.075,.09);tag('갯벌',.40,.08);tag('바닷길',.63,.09);tag('섬',.775,.12);
+    ctx.lineWidth=4;ctx.strokeStyle='rgba(10,40,60,.5)';ctx.strokeText('바다',X(.94),H*.9);ctx.fillStyle='#fff';ctx.fillText('바다',X(.94),H*.9)}
+  return out;
+}
+function drawChevron(ctx,x,y,s,dir,col,a){ctx.save();ctx.globalAlpha=a;ctx.translate(x,y);ctx.scale(-dir,1);ctx.beginPath();ctx.moveTo(s*.45,-s*.6);ctx.lineTo(-s*.35,0);ctx.lineTo(s*.45,s*.6);ctx.lineWidth=s*.32;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=s*.46;ctx.stroke();ctx.strokeStyle=col;ctx.lineWidth=s*.28;ctx.stroke();ctx.restore()}
+function drawFish(ctx,x,y,s,d){ctx.save();ctx.translate(x,y);ctx.scale(d,1);ctx.fillStyle='#F4C04E';ctx.beginPath();ctx.ellipse(0,0,s,s*.55,0,0,7);ctx.fill();ctx.beginPath();ctx.moveTo(-s*.8,0);ctx.lineTo(-s*1.5,-s*.5);ctx.lineTo(-s*1.5,s*.5);ctx.fill();ctx.fillStyle='#13323A';ctx.beginPath();ctx.arc(s*.5,-s*.1,s*.12,0,7);ctx.fill();ctx.restore()}
+function drawCreature(ctx,k,x,y,s,t){ctx.save();ctx.translate(x,y);
+  if(k==='crab'){const dx=Math.sin(t*2)*s*.25;ctx.translate(dx,0);ctx.strokeStyle='#A8401D';ctx.lineWidth=s*.14;for(const sd of[-1,1])for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(sd*s*.4,-s*.35);ctx.lineTo(sd*s*(.85+j*.08),-s*(.05-j*.12)+s*.05);ctx.stroke()}
+    ctx.fillStyle='#E0672F';ctx.beginPath();ctx.ellipse(0,-s*.45,s*.6,s*.38,0,0,7);ctx.fill();ctx.beginPath();ctx.arc(-s*.7,-s*.85,s*.22,0,7);ctx.arc(s*.7,-s*.85,s*.22,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-s*.2,-s*.95,s*.14,0,7);ctx.arc(s*.2,-s*.95,s*.14,0,7);ctx.fill();ctx.fillStyle='#13323A';ctx.beginPath();ctx.arc(-s*.2,-s*.95,s*.07,0,7);ctx.arc(s*.2,-s*.95,s*.07,0,7);ctx.fill()}
+  else if(k==='snail'){ctx.fillStyle='#C9B79A';ctx.beginPath();ctx.ellipse(s*.1,-s*.12,s*.7,s*.16,0,0,7);ctx.fill();ctx.fillStyle='#8C6A4E';ctx.beginPath();ctx.arc(0,-s*.5,s*.45,0,7);ctx.fill();ctx.strokeStyle='#E8DCC4';ctx.lineWidth=s*.09;ctx.beginPath();ctx.arc(0,-s*.5,s*.25,0,5);ctx.stroke()}
+  else if(k==='clam'){ctx.fillStyle='#E9E1D0';ctx.beginPath();ctx.moveTo(-s*.65,-s*.1);ctx.quadraticCurveTo(0,-s*1.05,s*.65,-s*.1);ctx.closePath();ctx.fill();ctx.strokeStyle='#9C8C72';ctx.lineWidth=s*.07;for(let j=-2;j<=2;j++){ctx.beginPath();ctx.moveTo(0,-s*.12);ctx.lineTo(j*s*.22,-s*.62+Math.abs(j)*s*.12);ctx.stroke()}}
+  else if(k==='mud'){const hop=Math.max(0,Math.sin(t*2.4))*s*.35;ctx.translate(0,-hop);ctx.fillStyle='#6D7B6A';ctx.beginPath();ctx.ellipse(0,-s*.3,s*.75,s*.26,0,0,7);ctx.fill();ctx.beginPath();ctx.moveTo(-s*.6,-s*.3);ctx.lineTo(-s*1.05,-s*.6);ctx.lineTo(-s*1.05,0);ctx.fill();ctx.fillStyle='#8FA5C9';ctx.beginPath();ctx.arc(s*.1,-s*.55,s*.12,0,7);ctx.arc(-s*.15,-s*.55,s*.12,0,7);ctx.fill();ctx.fillStyle='#13323A';ctx.beginPath();ctx.arc(s*.45,-s*.62,s*.12,0,7);ctx.fill()}
+  else {ctx.strokeStyle='#C8786A';ctx.lineWidth=s*.22;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-s*.6,-s*.1);ctx.bezierCurveTo(-s*.2,-s*(.6+Math.sin(t*3)*.2),s*.2,s*.1,s*.6,-s*.35);ctx.stroke();ctx.fillStyle='rgba(50,35,22,.7)';ctx.beginPath();ctx.ellipse(-s*.75,-s*.05,s*.2,s*.08,0,0,7);ctx.fill()}
+  ctx.restore()}
+function drawWalker(ctx,x,y,h,t,dir){ctx.save();ctx.translate(x,y);ctx.scale(dir||1,1);const sw=Math.sin(t*9)*h*.12;
+  ctx.strokeStyle='#2B3A44';ctx.lineWidth=h*.1;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,-h*.42);ctx.lineTo(sw,0);ctx.moveTo(0,-h*.42);ctx.lineTo(-sw,0);ctx.stroke();
+  ctx.fillStyle='#F2B43A';rr(ctx,-h*.17,-h*.8,h*.34,h*.42,h*.1);ctx.fill();ctx.fillStyle='#3E7DC4';rr(ctx,-h*.3,-h*.76,h*.15,h*.3,h*.05);ctx.fill();
+  ctx.fillStyle='#F3D3B4';ctx.beginPath();ctx.arc(0,-h*.92,h*.13,0,7);ctx.fill();ctx.fillStyle='#D2453B';ctx.beginPath();ctx.ellipse(0,-h*1.0,h*.17,h*.07,0,Math.PI,0);ctx.fill();ctx.restore()}
+
+/* ---------- 2D 캔버스 ---------- */
+const c2=$('#c2d'),x2=c2.getContext('2d');let W2=0,H2=0;
+function fit(cv){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);const w=Math.max(1,Math.round(r.width)),h=Math.max(1,Math.round(r.height));if(cv.width!==w*d||cv.height!==h*d){cv.width=w*d;cv.height=h*d}cv.getContext('2d').setTransform(d,0,0,d,0,0);return[w,h]}
+function resize2(){[W2,H2]=fit(c2)}
+new ResizeObserver(resize2).observe(c2);
+
+c2.addEventListener('click',e=>{const r=c2.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  for(const h of hits){if(Math.hypot(x-h.x,y-h.y)<Math.max(h.r,22)){const c=CRE[h.i];const isNew=!S.found.has(h.i);S.found.add(h.i);renderFound();
+    say('<b>'+c.name+(isNew?'를 찾았어요!':'예요.')+'</b> '+c.desc+(S.found.size===CRE.length&&isNew?' 갯벌 친구를 모두 찾았어요!':''),6);return}}});
+c2.addEventListener('mousemove',e=>{const r=c2.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;c2.style.cursor=hits.some(h=>Math.hypot(x-h.x,y-h.y)<Math.max(h.r,22))?'pointer':'default'});
+
+/* ---------- 차트 ---------- */
+const cc=$('#chart');let tok={};
+function readTok(){const cs=getComputedStyle(document.documentElement);['--sea','--muted','--line','--ink','--out-soft','--out','--surface','--in'].forEach(k=>tok[k]=cs.getPropertyValue(k).trim())}
+readTok();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTok);
+new MutationObserver(readTok).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function drawChart(){const [w,h]=fit(cc),ctx=cc.getContext('2d');ctx.clearRect(0,0,w,h);
+  const day=Math.floor(S.T/24),pl=30,pr=8,pt=10,pb=22,cw=w-pl-pr,ch=h-pt-pb;
+  const X=hh=>pl+hh/24*cw,Y=L=>pt+(1-(L-.05)/.78)*ch;
+  for(let hh=0;hh<24;hh+=.1){if(tideL(day*24+hh)<PATH_OPEN){ctx.fillStyle=tok['--out-soft'];ctx.fillRect(X(hh),pt,cw/240+.5,ch)}}
+  ctx.strokeStyle=tok['--line'];ctx.lineWidth=1;ctx.font='12px "Gowun Dodum", sans-serif';ctx.fillStyle=tok['--muted'];ctx.textAlign='center';ctx.textBaseline='top';
+  [0,6,12,18,24].forEach(hh=>{ctx.beginPath();ctx.moveTo(X(hh),pt);ctx.lineTo(X(hh),pt+ch);ctx.stroke();ctx.fillText(hh+'시',X(hh),pt+ch+5)});
+  ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText('높음',pl-4,Y(.76));ctx.fillText('낮음',pl-4,Y(.1));
+  ctx.setLineDash([4,4]);ctx.strokeStyle=tok['--out'];ctx.beginPath();ctx.moveTo(pl,Y(PATH_OPEN));ctx.lineTo(pl+cw,Y(PATH_OPEN));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=tok['--out'];ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('이 선 아래: 바닷길 열림',pl+4,Y(PATH_OPEN)-2);
+  ctx.strokeStyle=tok['--sea'];ctx.lineWidth=2.5;ctx.beginPath();for(let hh=0;hh<=24;hh+=.1){const y=Y(tideL(day*24+hh));hh?ctx.lineTo(X(hh),y):ctx.moveTo(X(hh),y)}ctx.stroke();
+  const ch0=S.T-day*24,cy=Y(tideL(S.T));ctx.strokeStyle=tok['--ink'];ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(ch0),pt);ctx.lineTo(X(ch0),pt+ch);ctx.stroke();
+  ctx.fillStyle=tok['--surface'];ctx.beginPath();ctx.arc(X(ch0),cy,6.5,0,7);ctx.fill();ctx.fillStyle=tok['--sea'];ctx.beginPath();ctx.arc(X(ch0),cy,4.5,0,7);ctx.fill()}
+
+/* ---------- 화면 글자 ---------- */
+function fmt(hh){hh=((hh%24)+24)%24;let H=Math.floor(hh),M=Math.floor((hh-H)*60+1e-6);if(M>=60){M-=60;H++}const am=H<12;let h12=H%12;if(h12===0)h12=12;return{ampm:H===0?'밤':H<12?'오전':H===12?'낮':'오후',hm:h12+':'+String(M).padStart(2,'0')}}
+function phaseName(T){const c=tideC(T),d=tideD(T);if(c>.985)return'high';if(c<-.985)return'low';return d>0?'in':'out'}
+const ICONS={in:'<circle cx="20" cy="20" r="19" fill="var(--in)"/><path d="M20 28V12M13 18l7-7 7 7" stroke="var(--surface)" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  out:'<circle cx="20" cy="20" r="19" fill="var(--out)"/><path d="M20 12v16M13 22l7 7 7-7" stroke="var(--surface)" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  high:'<circle cx="20" cy="20" r="19" fill="var(--in)"/><path d="M10 15h20M12 23c3-3 5-3 8 0s5 3 8 0" stroke="var(--surface)" stroke-width="3" fill="none" stroke-linecap="round"/>',
+  low:'<circle cx="20" cy="20" r="19" fill="var(--out)"/><path d="M10 27h20M12 18c3-3 5-3 8 0s5 3 8 0" stroke="var(--surface)" stroke-width="3" fill="none" stroke-linecap="round"/>'};
+const STAT={in:['밀물','바닷물이 육지 쪽으로 밀려 들어와요'],out:['썰물','바닷물이 바다 쪽으로 빠져나가요'],high:['가장 높아요','바닷물이 가장 많이 들어왔어요. 곧 썰물이 시작돼요'],low:['가장 낮아요','바닷물이 가장 많이 빠져나갔어요. 곧 밀물이 시작돼요']};
+const GUIDE={in:'바닷물이 <b>육지 쪽으로 밀려 들어오고</b> 있어요. 표지판 눈금이 하나씩 잠기며 바닷물의 높이가 <b>높아져요</b>. 이것이 <b>밀물</b>이에요.',
+  out:'바닷물이 <b>바다 쪽으로 빠져나가고</b> 있어요. 갯벌이 넓게 드러나고 바닷물의 높이가 <b>낮아져요</b>. 이것이 <b>썰물</b>이에요.',
+  high:'바닷물이 가장 높이 올라왔어요! 갯벌과 바닷길이 모두 물에 잠겼어요. 이제 곧 바닷물이 빠져나가기 시작해요.',
+  low:'바닷물이 가장 많이 빠져나갔어요! 바닷길이 활짝 열렸어요. 섬으로 걸어가 보거나, 갯벌 친구를 찾아보세요.'};
+let lastPh='',lastKey='';
+function say(html,sec){S.msg={html:'<b>칠게 박사:</b> '+html,until:performance.now()+sec*1000}}
+
+function updateUI(){
+  const L=tideL(S.T),p=phaseName(S.T),f=fmt(S.T),day=Math.floor(S.T/24)+1,open=L<PATH_OPEN;
+  const n=MARKS.filter(m=>L>=m).length;
+  const key=[f.hm,f.ampm,day,p,n,open,S.playing,S.walk?1:0].join('|');
+  if(key!==lastKey){lastKey=key;
+    $('#clock').textContent=f.hm;$('#ampm').textContent=f.ampm;$('#day').textContent=day+'일째';
+    if(p!==lastPh){lastPh=p;$('#statusIcon').innerHTML=ICONS[p];$('#statusBig').textContent=STAT[p][0];$('#statusSub').textContent=STAT[p][1];$('#status').className='status '+(p==='in'||p==='high'?'in':'out')}
+    $$('#cells div').forEach((d,i)=>d.classList.toggle('on',i<n));
+    $('#gaugeNum').textContent=n===0?'0칸':n+'칸';
+    $('#gaugeText').textContent=n===0?'표지판 눈금이 모두 물 밖에 있어요':(p==='in'?'잠긴 눈금이 늘어나요 → 높아져요':p==='out'?'잠긴 눈금이 줄어들어요 → 낮아져요':'바닷물에 잠긴 눈금 수예요');
+    const pill=$('#pathPill');pill.textContent=open?'열렸어요':'물에 잠겼어요';pill.className='pill '+(open?'open':'closed');
+    $('#walkBtn').disabled=!!S.walk;
+    $('#play').setAttribute('aria-label',S.playing?'멈춤':'재생');
+    $('#playIcon').innerHTML=S.playing?'<rect x="6" y="4" width="4.5" height="16" rx="1" fill="currentColor"/><rect x="13.5" y="4" width="4.5" height="16" rx="1" fill="currentColor"/>':'<path d="M7 4l13 8-13 8z" fill="currentColor"/>';
+  }
+  const sl=$('#slider');if(document.activeElement!==sl||S.playing)sl.value=(S.T-Math.floor(S.T/24)*24).toFixed(2);
+  const now=performance.now();let html;
+  if(S.msg&&(S.msg.until>now))html=S.msg.html;else{S.msg=null;html=S.started?'<b>칠게 박사:</b> '+GUIDE[p]:'<b>칠게 박사:</b> 걸어서 섬에 갈 수 있을 때는 언제일까요? ▶ 재생을 눌러 바닷물을 지켜보세요!'}
+  const g=$('#guideText');if(g.innerHTML!==html)g.innerHTML=html;
+}
+function renderFound(){$('#foundList').innerHTML=CRE.map((c,i)=>'<span class="'+(S.found.has(i)?'got':'')+'">'+(S.found.has(i)?c.name:'?')+'</span>').join('');$('#foundCount').textContent=S.found.size+'/'+CRE.length}
+function renderLog(){const ul=$('#log');if(!S.log.length){ul.innerHTML='<li class="empty">재생하면 바닷물이 가장 높을 때와 가장 낮을 때를 자동으로 적어 줘요.</li>';$('#summary').hidden=true;return}
+  ul.innerHTML=S.log.map(e=>{const f=fmt(e.T);return'<li><span class="k '+e.kind+'">'+(e.kind==='high'?'가장 높음':'가장 낮음')+'</span><span>'+(Math.floor(e.T/24)+1)+'일째 '+f.ampm+' '+f.hm+'</span></li>'}).join('');
+  ul.scrollTop=ul.scrollHeight;
+  const hi=S.log.filter(e=>e.kind==='high').length,lo=S.log.filter(e=>e.kind==='low').length;$('#summary').hidden=!(hi>=2&&lo>=2)}
+
+/* ---------- 조작 ---------- */
+function setPlaying(v){S.playing=v;if(v&&!S.started){S.started=true;S.msg=null}lastKey=''}
+$('#play').onclick=()=>{if(S.walk)return;setPlaying(!S.playing)};
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!$('#sim').hidden&&!['INPUT','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();$('#play').click()}});
+$('#slider').addEventListener('input',e=>{const day=Math.floor(S.T/24);S.T=day*24+Math.min(23.99,+e.target.value);S.prevSign=Math.sign(tideD(S.T));if(S.playing)setPlaying(false);if(!S.started){S.started=true}});
+$$('.speed button').forEach(b=>b.onclick=()=>{S.speed=+b.dataset.speed;$$('.speed button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+function jumpTo(kind){if(S.walk)return;const base=kind==='low'?T0+P/2:T0;let k=Math.ceil((S.T+.05-base)/P);let t=base+k*P;S.T=t-.15;S.prevSign=Math.sign(tideD(S.T));setPlaying(true)}
+$('#goIn').onclick=()=>{jumpTo('low');say('바닷물이 가장 낮을 때부터 <b>밀물</b>을 지켜봐요. 표지판 눈금을 잘 보세요!',4)};
+$('#goOut').onclick=()=>{jumpTo('high');say('바닷물이 가장 높을 때부터 <b>썰물</b>을 지켜봐요. 갯벌이 어떻게 드러나는지 보세요!',4)};
+$('#clearLog').onclick=()=>{S.log=[];renderLog()};
+$('#walkBtn').onclick=()=>{if(S.walk)return;const L=tideL(S.T);
+  if(L>=PATH_OPEN){say('지금은 바닷길이 바닷물에 잠겨 있어서 갈 수 없어요. <b>썰물</b>이 되어 길이 드러날 때를 기다려요!',5);shake($('#walkBtn'));return}
+  let close=12;for(let d=0;d<12;d+=.05){if(tideL(S.T+d)>=PATH_OPEN){close=d;break}}
+  if(close<.7){say('곧 바닷물이 들어와 길이 잠겨요! 위험하니 오늘은 가지 말고 다음 썰물을 기다려요.',5);shake($('#walkBtn'));return}
+  S.walk={p:0,was:S.playing,arrived:false};S.playing=false;S.started=true;lastKey='';say('바닷길이 드러났어요! 바닷길을 따라 섬으로 걸어가요.',3)};
+function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake')}
+
+/* 보기 전환 */
+$$('.seg button').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+function setView(v){S.view=v;$$('.seg button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.view===v));c2.hidden=v!=='2d';$('#v3d').hidden=v!=='3d';$('#hint3d').hidden=v!=='3d';if(v==='3d')init3D();else resize2()}
+$('#fsBtn').onclick=()=>{const st=$('#stage');try{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else if(st.requestFullscreen)st.requestFullscreen().catch(()=>say('이 화면에서는 크게 보기를 쓸 수 없어요.',3))}catch(e){}};
+document.addEventListener('fullscreenchange',()=>{$('#fsBtn').textContent=document.fullscreenElement?'작게 보기':'크게 보기'});
+
+/* 탭 */
+$$('.tabs button').forEach(b=>b.onclick=()=>{$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));['sim','recap','quiz','learn'].forEach(id=>$('#'+id).hidden=id!==b.dataset.tab);if(b.dataset.tab==='quiz'){drawQuizPics();drawLines()}});
+
+/* ---------- 3D ---------- */
+const HS=14;let R3=null;
+function G3(x,z){
+  const u=x/100+.5;let h;
+  if(u<0)h=.92+Math.min(.3,-u*1.0)+.03*Math.sin(z*.2)*Math.sin(x*.15);
+  else if(u>1)h=-.06;
+  else{
+    const uu=clamp(u+.015*Math.sin(z*.12)+.01*Math.sin(z*.31+1),0,1);
+    let off;if(uu<.5)off=base2(uu);else off=lerp(base2(.5),-.04,sm((uu-.5)/.45));
+    if(uu>.29&&uu<.62)off+=.006*Math.sin(x*1.3)*Math.sin(z*1.1);
+    const pth=u<.6?base2(u):.24;const w=Math.exp(-Math.pow(z/3.2,2))*sm((u-.46)/.04)*(u<.82?1:0);
+    h=off+w*Math.max(0,pth-off);
+  }
+  const d=Math.hypot(x-27.5,z)/11;if(d<1)h=Math.max(h,.86*Math.pow(1-d*d,.85)+.02*Math.sin(x*.8)*Math.cos(z*.7)*(1-d));
+  const d2=Math.hypot(x-44,z+24)/4.5;if(d2<1)h=Math.max(h,.42*Math.pow(1-d2*d2,.7));
+  return h;
+}
+function col3(x,z,h){const u=x/100+.5,di=Math.hypot(x-27.5,z)/11,pw=Math.exp(-Math.pow(z/3.2,2)),n=.92+.08*Math.sin(x*.7+z*.4)*Math.cos(z*.9);let c;
+  if((di<1.05||Math.hypot(x-44,z+24)<5)&&h>.29)c=h>.48?[.37,.6,.3]:[.6,.56,.46];
+  else if(u<.2&&h>.6)c=[.44,.66,.35];
+  else if(h>.36&&u<.33)c=[.88,.78,.55];
+  else if(u>.47&&u<.8&&pw>.45&&h>.19)c=[.76,.68,.52];
+  else if(h>.03)c=[.5,.4,.32];
+  else c=[.62,.55,.42];
+  return c.map(v=>v*n)}
+function makeLabel(text,bg,fg,scale){const cv=document.createElement('canvas');cv.width=512;cv.height=160;const x=cv.getContext('2d');x.font='96px Jua, sans-serif';const tw=x.measureText(text).width;const w=Math.min(500,tw+60);
+  rr(x,(512-w)/2,20,w,120,60);x.fillStyle=bg;x.fill();x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';x.fillText(text,256,84);
+  const tex=new THREE.CanvasTexture(cv);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));sp.scale.set(12*(scale||1),3.75*(scale||1),1);sp.renderOrder=10;return sp}
+function init3D(){
+  if(R3)return;const host=$('#v3d');
+  if(!window.THREE||!THREE.OrbitControls){host.innerHTML='<div class="v3d-msg">3D 그림을 불러오지 못했어요.<br>인터넷 연결을 확인하고 새로고침해 주세요.</div>';R3={fail:true};return}
+  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));host.appendChild(renderer.domElement);
+  const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,16/9,.5,900);camera.position.set(-64,44,64);
+  const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.target.set(-4,4,0);controls.enableDamping=true;controls.maxPolarAngle=1.42;controls.minDistance=20;controls.maxDistance=170;controls.update();
+  scene.fog=new THREE.Fog(0xcfe9f5,140,360);
+  const hemi=new THREE.HemisphereLight(0xffffff,0x6b5a45,.62);scene.add(hemi);
+  const sun=new THREE.DirectionalLight(0xffffff,.9);scene.add(sun);
+  // 땅
+  const geo=new THREE.PlaneGeometry(240,170,240,170);geo.rotateX(-Math.PI/2);const pos=geo.attributes.position,col=new Float32Array(pos.count*3);
+  for(let i=0;i<pos.count;i++){const x=pos.getX(i)+10,z=pos.getZ(i);const h=G3(x,z);pos.setX(i,x);pos.setY(i,h*HS);const c=col3(x,z,h);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2]}
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeVertexNormals();
+  scene.add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true})));
+  // 바닷물
+  const wg=new THREE.PlaneGeometry(700,700,120,120);wg.rotateX(-Math.PI/2);const wb=Float32Array.from(wg.attributes.position.array);
+  const water=new THREE.Mesh(wg,new THREE.MeshPhongMaterial({color:0x2c9fbe,transparent:true,opacity:.8,shininess:90,specular:0xbfe8f5}));scene.add(water);
+  const M=(g,c,o)=>new THREE.Mesh(g,new THREE.MeshLambertMaterial(Object.assign({color:c},o||{})));
+  const at=(x,z,dy)=>new THREE.Vector3(x,G3(x,z)*HS+(dy||0),z);
+  // 집, 돌담, 나무
+  [[-44,-12,0x2f67a8],[-39,-2,0xd0623a],[-46,7,0x2f67a8],[-37,13,0xd0623a],[-53,-3,0x3f8a6b]].forEach(([x,z,c])=>{const g=new THREE.Group();const b=M(new THREE.BoxGeometry(5,3.4,4.2),0xf3eee4);b.position.y=1.7;g.add(b);const r=M(new THREE.ConeGeometry(4,2.4,4),c);r.position.y=4.6;r.rotation.y=Math.PI/4;g.add(r);g.position.copy(at(x,z));g.rotation.y=(x*7)%3;scene.add(g)});
+  const stoneG=new THREE.DodecahedronGeometry(.75,0);for(let z=-26;z<=26;z+=1.3){const s=M(stoneG,0x4c4a47);s.position.copy(at(-33.5,z,.4));s.rotation.set(z,z*2,0);scene.add(s)}
+  const tree=(x,z,s)=>{const g=new THREE.Group();const t=M(new THREE.CylinderGeometry(.3*s,.4*s,2.2*s,6),0x6b4a2e);t.position.y=1.1*s;g.add(t);const l=M(new THREE.ConeGeometry(1.8*s,4*s,7),0x3e7d3a);l.position.y=3.8*s;g.add(l);g.position.copy(at(x,z));scene.add(g)};
+  [[-50,15,1],[-56,-14,1.2],[-41,-20,1],[-60,6,1.1],[22,5,.9],[31,-5,1],[26,-7,.8],[33,4,.8],[44,-24,.7]].forEach(a=>tree(...a));
+  // 등대
+  const lh=new THREE.Group();const tw=M(new THREE.CylinderGeometry(.75,1.05,7,16),0xf6f4ee);tw.position.y=3.5;lh.add(tw);[1.6,4.3].forEach(y=>{const b=M(new THREE.CylinderGeometry(.92,.98,1,16),0xd2453b);b.position.y=y;lh.add(b)});
+  const lamp=new THREE.Mesh(new THREE.SphereGeometry(.8,16,12),new THREE.MeshBasicMaterial({color:0xffe58a}));lamp.position.y=7.7;lh.add(lamp);const cap=M(new THREE.ConeGeometry(1.2,1.4,16),0xd2453b);cap.position.y=8.9;lh.add(cap);
+  const lampLight=new THREE.PointLight(0xffe08a,0,60);lampLight.position.y=7.7;lh.add(lampLight);lh.position.copy(at(27.5,0));scene.add(lh);
+  // 표지판
+  const px=-3,pz=8,pole=new THREE.Group();const pg=G3(px,pz)*HS;const top=.80*HS;const pm=M(new THREE.CylinderGeometry(.22,.22,top-pg+.5,8),0xe9e4d8);pm.position.y=(top+pg)/2;pole.add(pm);
+  MARKS.forEach((m,i)=>{const r=M(new THREE.CylinderGeometry(.42,.42,.28,12),0xd2453b);r.position.y=m*HS;pole.add(r);const lb=makeLabel(String(i+1),'#137489','#ffffff',.3);lb.position.set(1.2,m*HS,0);pole.add(lb)});
+  const sign=makeLabel('표지판','#ffffff','#137489',.42);sign.position.y=top+1.3;pole.add(sign);
+  pole.position.set(px,0,pz);scene.add(pole);
+  // 배
+  const boat=new THREE.Group();const hull=M(new THREE.BoxGeometry(6,1.2,2.4),0xc9493c);boat.add(hull);const deck=M(new THREE.BoxGeometry(6.1,.25,2.5),0xffffff);deck.position.y=.65;boat.add(deck);
+  const cab=M(new THREE.BoxGeometry(2,1.6,1.8),0xf5f1e6);cab.position.set(-.6,1.5,0);boat.add(cab);const mast=M(new THREE.CylinderGeometry(.08,.08,3.6,6),0x5a4636);mast.position.set(1.8,2.4,0);boat.add(mast);
+  const flag=M(new THREE.BoxGeometry(.05,.6,1),0xf2b43a);flag.position.set(1.8,4,.5);boat.add(flag);boat.position.set(5.5,0,-12);boat.rotation.y=.5;scene.add(boat);const boatG=G3(5.5,-12)*HS;
+  // 게
+  const crabs=[];const crabMat=new THREE.MeshLambertMaterial({color:0xe0672f});
+  [[-22,-9],[-18,14],[-12,-18],[-8,3],[-15,22],[-3,-6],[2,16],[-25,4],[6,6]].forEach(([x,z],i)=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.SphereGeometry(.7,10,8),crabMat);b.scale.set(1,.45,.75);g.add(b);
+    [-1,1].forEach(s=>{const c=new THREE.Mesh(new THREE.SphereGeometry(.32,8,6),crabMat);c.position.set(.7,.1,s*.6);g.add(c);const e=new THREE.Mesh(new THREE.SphereGeometry(.13,6,6),new THREE.MeshBasicMaterial({color:0x13323a}));e.position.set(.4,.45,s*.22);g.add(e)});
+    g.position.copy(at(x,z,.2));scene.add(g);crabs.push({g,x,z,ph:i})});
+  // 걷는 사람
+  const walker=new THREE.Group();const wbdy=M(new THREE.CylinderGeometry(.55,.65,1.6,10),0xf2b43a);wbdy.position.y=1.6;walker.add(wbdy);const head=M(new THREE.SphereGeometry(.5,12,10),0xf3d3b4);head.position.y=2.85;walker.add(head);
+  const hat=M(new THREE.ConeGeometry(.65,.5,12),0xd2453b);hat.position.y=3.35;walker.add(hat);const legs=[-1,1].map(s=>{const l=M(new THREE.CylinderGeometry(.16,.16,1,6),0x2b3a44);l.position.set(0,.5,s*.25);walker.add(l);return l});
+  const bag=M(new THREE.BoxGeometry(.5,.9,.8),0x3e7dc4);bag.position.set(-.55,1.8,0);walker.add(bag);walker.scale.setScalar(1.25);walker.visible=false;scene.add(walker);
+  // 이름표
+  [['마을(육지)',-46,26,-2],['갯벌',-14,10,18],['바닷길',8,8,-1],['섬',27.5,.86*HS+12,0],['바다',62,6,22]].forEach(([t,x,y,z])=>{const s=makeLabel(t,'rgba(19,50,58,.78)','#ffffff',.8);s.position.set(x,y,z);scene.add(s)});
+  // 해, 달, 별
+  const sunBall=new THREE.Mesh(new THREE.SphereGeometry(10,20,16),new THREE.MeshBasicMaterial({color:0xffd45c,fog:false}));scene.add(sunBall);
+  const moon=new THREE.Mesh(new THREE.SphereGeometry(7,20,16),new THREE.MeshBasicMaterial({color:0xf3f1dc,fog:false}));scene.add(moon);
+  const sg=new THREE.BufferGeometry(),sp=[];for(let i=0;i<500;i++){const a=Math.random()*Math.PI*2,e=.15+Math.random()*1.3,r=420;sp.push(r*Math.cos(e)*Math.cos(a),r*Math.sin(e),r*Math.cos(e)*Math.sin(a))}
+  sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));const stars=new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:2,sizeAttenuation:false,transparent:true,opacity:0,fog:false}));scene.add(stars);
+  function size(){const r=host.getBoundingClientRect();if(r.width<2)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+  new ResizeObserver(size).observe(host);size();
+  const bg=new THREE.Color(),tmp=new THREE.Color();
+  R3={render(L,hour,t){
+    const sk=skyAt(hour,true),n=nightAt(hour);bg.setRGB(lerp(sk.bot[0],sk.top[0],.35),lerp(sk.bot[1],sk.top[1],.35),lerp(sk.bot[2],sk.top[2],.35));scene.background=bg;scene.fog.color.copy(bg);
+    const a=clamp((hour-5.6)/13.4,0,1)*Math.PI;sun.position.set(-Math.cos(a)*100,Math.max(10,Math.sin(a)*120),-40);sun.intensity=.95*(1-n)+.18;sun.color.setHex(n>.6?0x9fb4e8:0xffffff);hemi.intensity=.66-.36*n;
+    sunBall.position.set(-Math.cos(a)*380,Math.sin(a)*220-20,-160);sunBall.visible=hour>5.6&&hour<19;
+    const nh=(hour>=18?hour-18:hour+6)/12*Math.PI;moon.position.set(-Math.cos(nh)*380,Math.sin(nh)*200-10,-120);moon.visible=n>.3;
+    stars.material.opacity=n;lampLight.intensity=n*1.6;lamp.material.color.setHex(n>.3?0xfff2b0:0xe8d9a0);
+    water.position.y=L*HS;water.material.color.copy(tmp.setHex(0x2c9fbe).lerp(new THREE.Color(0x0f3a5a),n*.6));
+    const pa=wg.attributes.position.array;for(let i=0;i<pa.length;i+=3){const x=wb[i],z=wb[i+2];pa[i+1]=.16*Math.sin(x*.16+t*1.3)+.1*Math.sin(z*.21+t*1.05)}wg.attributes.position.needsUpdate=true;wg.computeVertexNormals();
+    const gr=L*HS<boatG+.4;boat.position.y=(gr?boatG+.55:L*HS+.35+Math.sin(t*1.5)*.12);boat.rotation.z=gr?.16:Math.sin(t*1.2)*.05;boat.rotation.x=gr?.05:Math.sin(t*.9)*.04;
+    crabs.forEach(c=>{const h=G3(c.x,c.z);c.g.visible=h>L+.008;if(c.g.visible){c.g.position.x=c.x+Math.sin(t*1.8+c.ph)*.8;c.g.position.y=h*HS+.2}});
+    if(S.walk){const u=S.walk.u,x=(u-.5)*100;walker.visible=true;walker.position.set(x,G3(x,0)*HS,0);walker.rotation.y=S.walk.dir>0?0:Math.PI;const sw=Math.sin(t*9)*.5;legs[0].rotation.z=sw;legs[1].rotation.z=-sw}else walker.visible=false;
+    controls.update();renderer.render(scene,camera)}};
+}
+
+/* ---------- 반복 ---------- */
+let last=performance.now(),tick=0;
+function frame(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;const at=now/1000;
+  if(S.walk){const w=S.walk;w.p+=dt/7;const p=w.p;
+    w.u=p<.45?lerp(.21,.72,p/.45):p<.55?.72:lerp(.72,.21,(p-.55)/.45);w.dir=p<.5?1:-1;
+    if(p>=.45&&!w.arrived){w.arrived=true;say('<b>섬에 도착했어요!</b> 등대가 바로 앞이에요. 바닷물이 들어오기 전에 서둘러 돌아가요.',3)}
+    if(p>=1){S.walk=null;lastKey='';say('무사히 돌아왔어요! 바닷길은 <b>썰물</b> 때만 걸을 수 있어요. 밀물이 오면 다시 물에 잠겨요.',5);if(w.was)setPlaying(true)}}
+  else if(S.playing){S.T+=dt*.5*S.speed}
+  const sg=Math.sign(tideD(S.T));
+  if(sg!==S.prevSign&&sg!==0){if(S.playing){const kind=S.prevSign>0?'high':'low';S.log.push({kind,T:S.T});if(S.log.length>40)S.log.shift();renderLog()}S.prevSign=sg}
+  const L=tideL(S.T),hour=S.T-Math.floor(S.T/24)*24;
+  if(S.view==='2d'){if(W2<2)resize2();x2.clearRect(0,0,W2,H2);hits=drawScene(x2,W2,H2,{hour,L,dv:tideD(S.T),at,walkU:S.walk?S.walk.u:null,walkDir:S.walk?S.walk.dir:1})}
+  else if(R3&&!R3.fail)R3.render(L,hour,at);
+  if((tick++%2)===0)drawChart();
+  drawRecap(at);
+  updateUI();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 퀴즈 ---------- */
+const QUIZ=[
+  {q:'화살표를 보세요. 바닷물은 어느 쪽으로 움직이고 있나요?',pics:[{L:.44,dv:1}],o:['육지 쪽으로 밀려 들어와요','바다 쪽으로 빠져나가요'],a:0,hint:'화살표가 마을(육지)과 바다 중 어느 쪽을 가리키는지 봐요.',ex:'바닷물이 육지 쪽으로 밀려 들어오고 있어요. 이것이 밀물이에요.'},
+  {q:'밀물 때 바닷물의 높이는 어떻게 될까요?',o:['높아져요','낮아져요','그대로예요'],a:0,hint:'시뮬레이터에서 밀물 때 표지판 눈금이 어떻게 되었는지 떠올려 봐요.',ex:'밀물 때는 바닷물이 육지 쪽으로 밀려 들어와서 바닷물의 높이가 높아져요.'},
+  {q:'썰물 때 바닷물은 어느 쪽으로 움직일까요?',o:['육지 쪽으로 밀려 들어와요','바다 쪽으로 빠져나가요'],a:1,hint:'썰물 때 갯벌이 드러났던 모습을 떠올려 봐요.',ex:'썰물 때는 바닷물이 바다 쪽으로 빠져나가고, 바닷물의 높이가 낮아져요.'},
+  {q:'바닷가의 모습이 A에서 B로 바뀌었어요. 밀물일까요, 썰물일까요?',pics:[{L:.67,cap:'A (먼저)'},{L:.30,cap:'B (나중)'}],o:['밀물','썰물'],a:1,hint:'표지판에서 물에 잠긴 눈금 수를 비교해 봐요.',ex:'잠긴 눈금이 줄어들고 갯벌이 드러났어요. 바닷물의 높이가 낮아졌으니 썰물이에요.'},
+  {q:'바닷물이 육지 쪽까지 가득 들어온 모습이에요. 어느 때의 모습일까요?',pics:[{L:.74}],o:['밀물 때','썰물 때'],a:0,hint:'바닷물이 높을까요, 낮을까요?',ex:'바닷물이 밀려 들어와 높이가 높아진 밀물 때의 모습이에요.'},
+  {q:'지금 걸어서 섬에 갈 수 있을까요?',pics:[{L:.13}],o:['갈 수 있어요','갈 수 없어요'],a:0,hint:'섬으로 가는 바닷길이 물 밖으로 드러나 있는지 봐요.',ex:'바닷물이 빠져나가 바닷길이 드러났어요. 썰물 때는 걸어서 섬에 갈 수 있어요.'},
+  {q:'바닷물이 가득 들어왔다가 빠져나가는 일은 하루에 몇 번쯤 일어날까요?',o:['한 번쯤','두 번쯤','열 번쯤'],a:1,hint:'시뮬레이터의 관찰 기록장을 확인해 봐요.',ex:'하루에 바닷물이 두 번쯤 가득 들어오고, 두 번쯤 빠져나가요.'},
+  {q:'갯벌 체험을 하는데 바닷물이 들어오기 시작했어요. 어떻게 해야 할까요?',o:['조개를 더 줍고 나와요','바로 육지 쪽으로 나와요','바닷길 끝까지 가 봐요'],a:1,hint:'밀물이 되면 바닷물의 높이가 어떻게 되나요?',ex:'밀물이 시작되면 바닷물이 생각보다 빨리 차올라요. 바로 육지 쪽으로 나와야 안전해요.'}
+];
+const QS=QUIZ.map(()=>({tries:0,done:false}));
+function buildQuiz(){const g=$('#quizGrid');g.innerHTML='';
+  QUIZ.forEach((q,qi)=>{const el=document.createElement('div');el.className='card q';
+    el.innerHTML='<h3><span class="n">'+(qi+1)+'</span><span>'+q.q+'</span></h3>'+(q.pics?'<div class="pics">'+q.pics.map((p,pi)=>'<figure><canvas data-q="'+qi+'" data-p="'+pi+'"></canvas>'+(p.cap?'<figcaption>'+p.cap+'</figcaption>':'')+'</figure>').join('')+'</div>':'')+
+      '<div class="opts">'+q.o.map((t,oi)=>'<button class="opt" data-oi="'+oi+'">'+t+'</button>').join('')+'</div><p class="fb" hidden></p>';
+    el.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{const s=QS[qi];if(s.done)return;const oi=+b.dataset.oi,fb=el.querySelector('.fb');s.tries++;
+      if(oi===q.a){s.done=true;b.classList.add('right');el.querySelectorAll('.opt').forEach(x=>x.disabled=true);fb.hidden=false;fb.className='fb ok';fb.innerHTML='<b>'+(s.tries===1?'정답이에요!':'맞았어요!')+'</b> '+q.ex}
+      else{b.classList.add('wrong');b.disabled=true;shake(b);fb.hidden=false;fb.className='fb no';fb.innerHTML='<b>다시 생각해 봐요.</b> '+q.hint}
+      updScore()});
+    g.appendChild(el)})}
+function updScore(){const first=QS.filter(s=>s.done&&s.tries===1).length;$('#score').textContent=first+' / '+QUIZ.length;$('#badge').hidden=!(QS.every(s=>s.done)&&mDone===2)}
+function drawQuizPics(){$$('#quizGrid canvas').forEach(cv=>{if($('#quiz').hidden)return;const q=QUIZ[+cv.dataset.q],p=q.pics[+cv.dataset.p];const[w,h]=fit(cv);if(w<5)return;drawScene(cv.getContext('2d'),w,h,{hour:11,L:p.L,dv:p.dv||0,at:0,small:true,arrows:!!p.dv})})}
+
+/* 선 잇기 */
+const ML=[{id:'a',t:'바닷물이 육지 쪽으로 밀려 들어와요',tag:'밀물',c:'in'},{id:'b',t:'바닷물이 바다 쪽으로 빠져나가요',tag:'썰물',c:'out'}];
+const MR=[{id:'b',t:'바닷물의 높이가 낮아져요'},{id:'a',t:'바닷물의 높이가 높아져요'}];
+let mSel=null,mDone=0;const mPairs=[];
+function buildMatch(){$('#mLeft').innerHTML=ML.map(m=>'<button class="mi" data-id="'+m.id+'">'+m.t+'<span class="tag '+m.c+'">→ '+m.tag+'</span></button>').join('');$('#mRight').innerHTML=MR.map(m=>'<button class="mi" data-id="'+m.id+'">'+m.t+'</button>').join('');
+  $$('#mLeft .mi').forEach(b=>b.onclick=()=>{if(b.classList.contains('done'))return;$$('#mLeft .mi').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');mSel=b});
+  $$('#mRight .mi').forEach(b=>b.onclick=()=>{if(!mSel||b.classList.contains('done'))return;if(b.dataset.id===mSel.dataset.id){mSel.classList.remove('sel');mSel.classList.add('done');b.classList.add('done');mPairs.push([mSel,b]);mSel=null;mDone++;drawLines();if(mDone===2)$('#matchDone').hidden=false;updScore()}
+    else{const a=mSel;[a,b].forEach(x=>{x.classList.add('bad');shake(x)});setTimeout(()=>[a,b].forEach(x=>x.classList.remove('bad')),600)}})}
+function drawLines(){const svg=$('#matchSvg'),br=$('#matchBoard').getBoundingClientRect();svg.innerHTML=mPairs.map(([a,b])=>{const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return'<line x1="'+(ra.right-br.left)+'" y1="'+(ra.top+ra.height/2-br.top)+'" x2="'+(rb.left-br.left)+'" y2="'+(rb.top+rb.height/2-br.top)+'" stroke="var(--ok)" stroke-width="4" stroke-linecap="round"/>'}).join('')}
+new ResizeObserver(()=>{drawLines();drawQuizPics()}).observe($('#quiz'));
+
+
+/* 한눈에 정리 */
+const RC_ROWS=[
+  {k:'바닷물의 이동',o:['육지 쪽으로 밀려 들어와요','바다 쪽으로 빠져나가요'],a:{in:0,out:1}},
+  {k:'바닷물의 높이',o:['높아져요','낮아져요'],a:{in:0,out:1}},
+  {k:'바닷가 모습',o:['갯벌과 바닷길이 잠겨요','갯벌과 바닷길이 드러나요'],a:{in:0,out:1}}
+];
+function buildRecap(){$$('.rc-card').forEach(card=>{const kind=card.dataset.kind,box=card.querySelector('.rc-rows');
+  box.innerHTML=RC_ROWS.map((r,ri)=>'<div class="rc-row"><span class="k">'+r.k+'</span><div class="rc-opts">'+r.o.map((t,oi)=>'<button class="rc-opt" data-ri="'+ri+'" data-oi="'+oi+'">'+t+'</button>').join('')+'</div></div>').join('');
+  box.querySelectorAll('.rc-opt').forEach(b=>b.onclick=()=>{const r=RC_ROWS[+b.dataset.ri];if(+b.dataset.oi===r.a[kind]){b.classList.add('right');b.parentNode.querySelectorAll('.rc-opt').forEach(x=>{x.disabled=true;x.classList.remove('wrong')})}else{b.classList.add('wrong');shake(b);setTimeout(()=>b.classList.remove('wrong'),700)}})});
+  $$('.blank').forEach(b=>{b.textContent='?';b.classList.remove('open');b.onclick=()=>{b.textContent=b.dataset.a;b.classList.add('open')}})}
+$('#rcShow').onclick=()=>{$$('.rc-card').forEach(card=>{const kind=card.dataset.kind;card.querySelectorAll('.rc-opt').forEach(b=>{const r=RC_ROWS[+b.dataset.ri];if(+b.dataset.oi===r.a[kind])b.classList.add('right');b.disabled=true})});$$('.blank').forEach(b=>b.click())};
+$('#rcReset').onclick=buildRecap;
+function drawRecap(at){if($('#recap').hidden)return;
+  [['#rcIn',1],['#rcOut',-1]].forEach(([id,d])=>{const cv=$(id);const[w,h]=fit(cv);if(w<5)return;const cyc=(at/9)%1;const k=d>0?cyc:1-cyc;const L=lerp(.16,.72,sm(k));
+    drawScene(cv.getContext('2d'),w,h,{hour:11,L,dv:d,at,small:false,arrows:true})})}
+buildRecap();
+/* 시작 */
+buildQuiz();buildMatch();renderFound();renderLog();updScore();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>drawQuizPics());
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
